@@ -246,7 +246,7 @@ function applyState(st){
   examOpen = !!(st && st.open);
   const unknown = st && st.open === null;
   $('waitBanner').classList.toggle('hide', examOpen || unknown);
-  const ended = st && !st.open && st.closedAt;
+  const ended = st && !st.open && st.closedAt && (Date.now() - st.closedAt) < 6*3600*1000;  // 結束 6 小時內顯示「已結束」，之後回到「尚未開始」
   $('waitBanner').innerHTML = ended ? '🔒 <b>本次考試已結束</b><br>如有問題請洽承辦人。'
     : '⏳ <b>考試尚未開始</b><br>請先閱讀規則、填好基本資料，等監考人員開放後即可開始作答（畫面會自動更新，不用重新整理）。';
   const b = $('btnStart');
