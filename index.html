@@ -11,6 +11,7 @@
   const API_URL = 'https://script.google.com/macros/s/AKfycby8JVngtfoxC9gadUH5B5y9JrhQfbJan6sezGDako32ZWIMNrY2orgleYOUsozx6IeObw/exec';
 </script>
 <script src="exams/list.js"></script>
+<script src="theme.js"></script>
 <style>
 :root{
   --bg:#f4f6f5; --card:#ffffff; --ink:#1c2422; --muted:#5f6b68; --line:#dfe5e3;
@@ -55,7 +56,7 @@ textarea{min-height:110px;resize:vertical}
 .agree{display:flex;gap:10px;align-items:center;margin:18px 0 4px;font-weight:500;cursor:pointer}
 .agree input{width:24px;height:24px;accent-color:var(--accent)}
 .wait{background:var(--warn-soft);color:var(--warn);border:1.5px solid var(--warn);border-radius:14px;padding:14px 16px;margin:14px 0;line-height:1.6}
-.adminLink{flex:none;margin-top:10px;font-size:.85rem;color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px;background:var(--card)}
+.adminLink{flex:none;font-size:.85rem;color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px;background:var(--card)}
 .adminLink:hover{color:var(--accent);border-color:var(--accent)}
 .banner{background:var(--warn-soft);color:var(--warn);border-radius:12px;padding:10px 14px;font-size:.92rem;margin:10px 0}
 
@@ -111,13 +112,15 @@ textarea{min-height:110px;resize:vertical}
 @media (max-width:440px){ body{font-size:19px} .likert button{font-size:.7rem;padding:8px 2px} .facts{gap:6px} }
 .btn.big{padding:16px 22px;font-size:1.05rem;margin:6px 0 10px}
 </style>
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 <div class="wrap">
 
 <!-- 1. 基本資料 -->
 <section id="s-info" class="hide">
-  <div class="row" style="align-items:flex-start"><h1 id="examTitle" style="flex:1">期末考試</h1><a class="adminLink" href="admin.html" title="管理者：開始／結束作答、成績分析">⚙ 管理</a></div>
+  <div class="row" style="justify-content:flex-end;gap:0"><a class="adminLink" href="admin.html" title="管理者：開始／結束作答、成績分析">⚙ 管理</a></div>
+  <h1 id="examTitle">期末考試</h1>
   <div class="facts">
     <div class="fact"><b id="fTotal">–</b><span>題數</span></div>
     <div class="fact"><b id="fPer">–</b><span>每題分數</span></div>
@@ -233,6 +236,7 @@ async function api(payload){
 }
 
 function show(id){
+  if(window.closeThemePicker) closeThemePicker();
   ['s-info','s-exam','s-survey','s-result'].forEach(s => $(s).classList.toggle('hide', s!==id));
   $('nav').classList.toggle('hide', id!=='s-exam');
   window.scrollTo(0,0);
@@ -516,6 +520,8 @@ function boot(){
   document.head.appendChild(sc);
 }
 boot();
+
+mountThemePicker(document.querySelector('.adminLink'));
 </script>
 </body>
 </html>

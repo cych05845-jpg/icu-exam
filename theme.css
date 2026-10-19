@@ -1,0 +1,102 @@
+/* ===== 主題（考生頁與管理頁共用）===== */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap');
+
+/* 全息：未來感（預設）— 淺色底＋科技網格＋全息漸層 */
+:root[data-theme="holo"]{
+  --bg:#f8f9ff; --card:#ffffff; --cardbg:rgba(255,255,255,.78); --ink:#0d1433; --muted:#5b6690; --line:rgba(109,93,252,.18);
+  --accent:#5b5cf6; --accent-ink:#ffffff; --accent-soft:rgba(91,92,246,.09);
+  --grad:linear-gradient(115deg,#00c6ff 0%,#5b5cf6 52%,#ff4fd8 100%);
+  --bgimg:radial-gradient(640px 380px at 0% 0%,rgba(0,198,255,.13),transparent 62%),radial-gradient(620px 400px at 100% 6%,rgba(255,79,216,.08),transparent 62%),radial-gradient(760px 520px at 50% 115%,rgba(91,92,246,.09),transparent 62%);
+  --shadow:0 0 0 1px rgba(91,92,246,.06),0 12px 40px rgba(60,60,200,.10); --glow:0 0 0 3px rgba(0,198,255,.22),0 0 22px rgba(91,92,246,.28);
+  --ok:#00a88a; --ok-soft:rgba(0,200,160,.12); --bad:#f0437a; --bad-soft:rgba(240,67,122,.10); --warn:#c27c00; --warn-soft:rgba(255,190,40,.16);
+  --l5:#5b5cf6; --l4:#00c6ff; --l3:#d8dcf0; --l2:#ff9ccf; --l1:#f0437a;
+}
+:root[data-theme="holo"] body{
+  background-image:linear-gradient(rgba(91,92,246,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(91,92,246,.045) 1px,transparent 1px),var(--bgimg);
+  background-size:28px 28px,28px 28px,auto;
+}
+:root[data-theme="holo"] h1{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+:root[data-theme="holo"] .card,:root[data-theme="holo"] .kpi{border:1px solid rgba(255,255,255,.9);outline:1px solid var(--line)}
+:root[data-theme="holo"] .fact b,:root[data-theme="holo"] .kpi b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+:root[data-theme="holo"] .prog{height:7px;box-shadow:inset 0 0 0 1px var(--line)}
+:root[data-theme="holo"] .prog i{box-shadow:0 0 12px rgba(0,198,255,.6)}
+
+/* 晨光：淺色、冷調、玻璃質感 */
+:root[data-theme="aurora"]{
+  --bg:#f4f7fc; --card:#ffffff; --cardbg:rgba(255,255,255,.72); --ink:#16203a; --muted:#61708f; --line:rgba(120,140,190,.22);
+  --accent:#3b6cf6; --accent-ink:#ffffff; --accent-soft:rgba(59,108,246,.10);
+  --grad:linear-gradient(120deg,#3b6cf6 0%,#22b8e6 100%);
+  --bgimg:radial-gradient(900px 500px at 8% -10%,rgba(96,165,250,.28),transparent 60%),radial-gradient(800px 500px at 100% 0%,rgba(45,212,191,.20),transparent 60%),radial-gradient(700px 600px at 50% 110%,rgba(167,139,250,.16),transparent 60%);
+  --shadow:0 8px 30px rgba(40,70,140,.08); --glow:0 0 0 4px rgba(59,108,246,.14);
+  --ok:#0f9f6e; --ok-soft:rgba(16,185,129,.12); --bad:#e0475b; --bad-soft:rgba(244,63,94,.10); --warn:#b7791f; --warn-soft:rgba(251,191,36,.16);
+  --l5:#3b6cf6; --l4:#7fa2fb; --l3:#d3dbea; --l2:#f4a3b0; --l1:#e0475b;
+}
+/* 薄荷：淺綠、清爽 */
+:root[data-theme="mint"]{
+  --bg:#f2faf8; --card:#ffffff; --cardbg:rgba(255,255,255,.75); --ink:#12302b; --muted:#5b7a74; --line:rgba(80,160,140,.22);
+  --accent:#0ea5a0; --accent-ink:#ffffff; --accent-soft:rgba(14,165,160,.10);
+  --grad:linear-gradient(120deg,#0ea5a0 0%,#34d399 100%);
+  --bgimg:radial-gradient(900px 500px at 0% 0%,rgba(52,211,153,.22),transparent 60%),radial-gradient(800px 500px at 100% 10%,rgba(56,189,248,.16),transparent 60%);
+  --shadow:0 8px 30px rgba(20,90,80,.08); --glow:0 0 0 4px rgba(14,165,160,.15);
+  --ok:#0f9f6e; --ok-soft:rgba(16,185,129,.12); --bad:#e0475b; --bad-soft:rgba(244,63,94,.10); --warn:#b7791f; --warn-soft:rgba(251,191,36,.16);
+  --l5:#0ea5a0; --l4:#7dd8cf; --l3:#d3e4e0; --l2:#f4a3b0; --l1:#e0475b;
+}
+/* 薰衣草：淺紫、柔和 */
+:root[data-theme="lavender"]{
+  --bg:#f8f6ff; --card:#ffffff; --cardbg:rgba(255,255,255,.74); --ink:#251c3d; --muted:#6f6690; --line:rgba(140,120,200,.22);
+  --accent:#7c5cf0; --accent-ink:#ffffff; --accent-soft:rgba(124,92,240,.10);
+  --grad:linear-gradient(120deg,#7c5cf0 0%,#e46fb5 100%);
+  --bgimg:radial-gradient(900px 500px at 0% 0%,rgba(167,139,250,.26),transparent 60%),radial-gradient(800px 500px at 100% 0%,rgba(244,114,182,.16),transparent 60%);
+  --shadow:0 8px 30px rgba(80,50,150,.08); --glow:0 0 0 4px rgba(124,92,240,.15);
+  --ok:#0f9f6e; --ok-soft:rgba(16,185,129,.12); --bad:#e0475b; --bad-soft:rgba(244,63,94,.10); --warn:#b7791f; --warn-soft:rgba(251,191,36,.16);
+  --l5:#7c5cf0; --l4:#b4a3f7; --l3:#dedaea; --l2:#f4a3b0; --l1:#e0475b;
+}
+/* 深空：深色、霓虹 */
+:root[data-theme="space"]{
+  --bg:#0a0f1f; --card:#121a30; --cardbg:rgba(20,30,56,.66); --ink:#e6ecff; --muted:#93a0c4; --line:rgba(120,150,255,.18);
+  --accent:#38d6f5; --accent-ink:#06121f; --accent-soft:rgba(56,214,245,.12);
+  --grad:linear-gradient(120deg,#38d6f5 0%,#8b7bff 100%);
+  --bgimg:radial-gradient(900px 600px at 10% -10%,rgba(56,214,245,.18),transparent 60%),radial-gradient(800px 600px at 100% 10%,rgba(139,123,255,.20),transparent 60%);
+  --shadow:0 10px 40px rgba(0,0,0,.35); --glow:0 0 0 4px rgba(56,214,245,.18),0 0 24px rgba(56,214,245,.25);
+  --ok:#4ade80; --ok-soft:rgba(74,222,128,.14); --bad:#fb7185; --bad-soft:rgba(251,113,133,.14); --warn:#facc15; --warn-soft:rgba(250,204,21,.12);
+  --l5:#38d6f5; --l4:#2b8ca3; --l3:#3a4566; --l2:#b5576a; --l1:#fb7185;
+}
+/* 經典綠：原本的配色 */
+:root[data-theme="classic"]{
+  --bg:#f4f6f5; --card:#ffffff; --cardbg:#ffffff; --ink:#1c2422; --muted:#5f6b68; --line:#dfe5e3;
+  --accent:#0f6b5c; --accent-ink:#ffffff; --accent-soft:#e3f1ee; --grad:#0f6b5c; --bgimg:none;
+  --shadow:none; --glow:0 0 0 3px #e3f1ee;
+  --ok:#1f7a3f; --ok-soft:#e5f4ea; --bad:#b3261e; --bad-soft:#fbe9e7; --warn:#8a5a00; --warn-soft:#fff4dc;
+  --l5:#0f6b5c; --l4:#5fa596; --l3:#c9d3d0; --l2:#e8a27c; --l1:#c4502f;
+}
+
+/* ===== 共用質感 ===== */
+body{background-color:var(--bg);background-image:var(--bgimg);background-attachment:fixed;transition:background-color .3s}
+.card,.kpi{background:var(--cardbg);border-color:var(--line);box-shadow:var(--shadow);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-radius:18px}
+.btn:not(.ghost){background:var(--grad);color:var(--accent-ink);box-shadow:0 6px 18px var(--accent-soft)}
+.btn:not(.ghost):hover{filter:brightness(1.05)}
+.btn.ghost{background:var(--cardbg)}
+#btnToggle.stop{background:var(--bad)!important}
+.prog i,.bar i,.hist .b i{background:var(--grad)}
+.opt{background:var(--cardbg);transition:border-color .15s,box-shadow .15s,transform .1s}
+.opt:active{transform:scale(.99)}
+.opt.sel{box-shadow:var(--glow)}
+.opt.sel .lt,.likert button.sel{background:var(--grad);border-color:transparent}
+.score b,.fact b,.kpi b{font-family:"Outfit","Noto Sans TC",sans-serif;letter-spacing:.01em}
+.score b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.fact{background:var(--accent-soft);border:1px solid var(--line)}
+.topbar{background:color-mix(in srgb,var(--bg) 95%,transparent);margin:0 -16px;padding-left:16px;padding-right:16px;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.nav{background:var(--cardbg);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+input[type=text],input[type=email],textarea,input,select{background:var(--cardbg)}
+h1{letter-spacing:.02em}
+.qnum{color:var(--accent)}
+
+/* ===== 主題選擇器 ===== */
+.theme-btn{flex:none;font:inherit;font-size:.85rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 12px;background:var(--cardbg);cursor:pointer;margin-left:8px}
+.theme-btn:hover{color:var(--accent);border-color:var(--accent)}
+.theme-pop{position:absolute;z-index:40;right:16px;margin-top:8px;background:var(--cardbg);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:14px;display:grid;grid-template-columns:repeat(3,64px);gap:10px}
+.theme-pop[hidden]{display:none}
+.theme-sw{font:inherit;font-size:.78rem;color:var(--ink);background:transparent;border:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px;border-radius:12px}
+.theme-sw i{display:block;width:40px;height:40px;border-radius:50%;border:2px solid var(--line)}
+.theme-sw.on i{outline:3px solid var(--accent);outline-offset:2px}
+@media (max-width:440px){ .theme-pop{grid-template-columns:repeat(3,56px);gap:6px;right:8px} .theme-sw i{width:34px;height:34px} }

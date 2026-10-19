@@ -10,6 +10,7 @@
   const API_URL_DEFAULT = 'https://script.google.com/macros/s/AKfycby8JVngtfoxC9gadUH5B5y9JrhQfbJan6sezGDako32ZWIMNrY2orgleYOUsozx6IeObw/exec';
 </script>
 <script src="exams/list.js"></script>
+<script src="theme.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
@@ -77,6 +78,7 @@ summary{cursor:pointer;list-style-position:outside}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:5px;vertical-align:1px}
 td.fail{color:var(--bad);font-weight:700}
 </style>
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 <div class="wrap">
@@ -422,6 +424,11 @@ $('btnXlsx').onclick = () => {
   const people = d.map(x => { const o = {姓名:x.name, 員編:x.empId, 單位:x.unit, Email:x.email, 得分:x.score, 答對題數:x.correct, 題數:x.total, 作答分鐘:x.dur?Math.round(x.dur/60):'', 交卷時間:x.time};
     SAT.forEach((c,i)=>o[c]=x.sat[i]??''); o['建議']=x.sugg; QIDS.forEach(q=>o['Q'+q]=(x.ans[q]||'')+(x.ans[q]===KEY[q]?' ✓':'')); return o; });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(people), '個人成績');
+  const qmap = QIDS.map(q => { const q0 = QMAP[q] || {opts:[]}; const o = {題號:'Q'+q, 題目:q0.q||''};
+    'ABCDE'.split('').forEach((L,i) => o['選項'+L] = q0.opts[i] || ''); o['標準答案'] = KEY[q]; o['正確答案內容'] = q0.opts['ABCDE'.indexOf(KEY[q])] || ''; return o; });
+  qmap.push({}); qmap.push({題號:'說明', 題目:'「個人成績」中 Q1–Q50 的字母是題庫原始選項（本表的 A–E），不是考生畫面上隨機排列後的字母；✓ 表示答對。'});
+  const wsQ = XLSX.utils.json_to_sheet(qmap); wsQ['!cols'] = [{wch:7},{wch:60},{wch:28},{wch:28},{wch:28},{wch:28},{wch:20},{wch:9},{wch:28}];
+  XLSX.utils.book_append_sheet(wb, wsQ, '題目對照');
   const items = itemData().map(it => { const o = {題號:it.q, 題目:it.text, 標準答案:it.key, 答對率P:+it.P.toFixed(3), 鑑別度D:+it.D.toFixed(3), 提示:it.flags.map(f=>f[1]).join('、')};
     Object.keys(it.dist).forEach(k => o['選'+(k||'未答')] = it.dist[k]); return o; });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(items), '題目分析');
@@ -586,6 +593,8 @@ async function demo(){
   RAWS = {'demo-1':demoRaw(base,-0.08), 'demo-2':demoRaw(base,0), 'demo-3':demoRaw(base,0.07)}; ERRS = {};
   isDemo = true; EXAM_ID = null; afterLoad();
 }
+
+mountThemePicker(document.querySelector('a[href="./"]'));
 </script>
 </body>
 </html>

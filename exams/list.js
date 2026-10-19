@@ -5,3 +5,6 @@ window.EXAM_LIST = [
 ];
 // 考生打開首頁時預設進入的考試（也可用網址指定：index.html?exam=2027-1）
 window.ACTIVE_EXAM = '2026-final';
+
+// 預設主題（考生與管理頁）：holo 全息、aurora 晨光、mint 薄荷、lavender 薰衣草、space 深空、classic 經典綠。每個人也可以按「🎨 主題」自己換。
+window.DEFAULT_THEME = 'holo';
