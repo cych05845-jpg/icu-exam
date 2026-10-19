@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <script>
   // ====== 設定：貼上 Apps Script 網頁應用程式網址 ======
-  const API_URL = '';
+  const API_URL = 'https://script.google.com/macros/s/AKfycby8JVngtfoxC9gadUH5B5y9JrhQfbJan6sezGDako32ZWIMNrY2orgleYOUsozx6IeObw/exec';
 </script>
 <script src="exams/list.js"></script>
 <style>
@@ -54,6 +54,7 @@ textarea{min-height:110px;resize:vertical}
 .filelink:hover{background:var(--accent-soft)}
 .agree{display:flex;gap:10px;align-items:center;margin:18px 0 4px;font-weight:500;cursor:pointer}
 .agree input{width:24px;height:24px;accent-color:var(--accent)}
+.wait{background:var(--warn-soft);color:var(--warn);border:1.5px solid var(--warn);border-radius:14px;padding:14px 16px;margin:14px 0;line-height:1.6}
 .banner{background:var(--warn-soft);color:var(--warn);border-radius:12px;padding:10px 14px;font-size:.92rem;margin:10px 0}
 
 /* exam */
@@ -131,6 +132,7 @@ textarea{min-height:110px;resize:vertical}
     <div class="muted" id="resumeWho"></div>
     <div class="row" style="margin-top:12px"><button class="btn" id="btnResume">繼續作答</button><button class="btn ghost" id="btnDiscard">不是我，重新開始</button></div>
   </div>
+  <div id="waitBanner" class="wait hide">⏳ <b>考試尚未開始</b><br>請先閱讀規則、填好基本資料，等監考人員開放後即可開始作答（畫面會自動更新，不用重新整理）。</div>
   <form class="card" id="infoForm" novalidate>
     <h2>考生基本資料</h2>
     <label class="f" for="iName">姓名<span class="req">*</span></label>
@@ -237,6 +239,59 @@ function show(id){
 function modal(html){ $('modalBox').innerHTML = html; $('modal').classList.remove('hide'); }
 function closeModal(){ $('modal').classList.add('hide'); }
 
+/* ---------- 開始／結束作答開關 ---------- */
+let pollT = null, examPollT = null, examOpen = !API_URL, autoSubmitting = false;
+const jitter = ms => ms + Math.floor(Math.random()*ms*0.3);
+function applyState(st){
+  examOpen = !!(st && st.open);
+  const unknown = st && st.open === null;
+  $('waitBanner').classList.toggle('hide', examOpen || unknown);
+  const ended = st && !st.open && st.closedAt;
+  $('waitBanner').innerHTML = ended ? '🔒 <b>本次考試已結束</b><br>如有問題請洽承辦人。'
+    : '⏳ <b>考試尚未開始</b><br>請先閱讀規則、填好基本資料，等監考人員開放後即可開始作答（畫面會自動更新，不用重新整理）。';
+  const b = $('btnStart');
+  if(!b.dataset.busy){ b.disabled = !examOpen; b.textContent = examOpen ? '開始作答' : (unknown ? '連線中…' : ended ? '考試已結束' : '等待監考人員開放…'); }
+}
+async function pollInfo(first){
+  clearTimeout(pollT);
+  if($('s-info').classList.contains('hide') && !first) return;
+  try{
+    const r = await api({action:'info'});
+    if(first){ const i = r.info || {}; renderRules(i.rules ? i.rules.split('\n') : (E.rules||[]), i.files || []); }
+    applyState(r.state);
+  }catch(e){ if(first) applyState({open:false}); }
+  if(!$('s-info').classList.contains('hide')) pollT = setTimeout(() => pollInfo(false), jitter(examOpen ? 30000 : 8000));
+}
+function startExamPoll(){
+  clearTimeout(examPollT);
+  if(!API_URL || !S || S.stage !== 'exam') return;
+  examPollT = setTimeout(async () => {
+    try{ const r = await api({action:'info'}); if(r.state && !r.state.open){ autoSubmit(); return; } }catch(e){}
+    startExamPoll();
+  }, jitter(25000));
+}
+async function autoSubmit(){
+  if(autoSubmitting || !S || S.stage !== 'exam') return;
+  autoSubmitting = true;
+  modal(`<h2>⏰ 考試時間結束</h2><p>監考人員已結束作答，系統正在自動幫你交卷…</p><div class="err" id="mErr"></div>`);
+  try{
+    await doSubmit();
+    modal(`<h2>已自動交卷 ✓</h2><p>你的答案已送出。請接著填寫滿意度問卷，送出後即可查看分數。</p><button class="btn block" id="mGo">填寫滿意度問卷</button>`);
+    $('mGo').onclick = () => { closeModal(); route(); };
+  }catch(e){
+    modal(`<h2>自動交卷失敗</h2><p class="err">${esc(e.message)}</p><p>你的答案仍保留在這台裝置上，請立即按下方按鈕重試，或舉手告知監考人員。</p><button class="btn block" id="mRetry">重試交卷</button>`);
+    $('mRetry').onclick = () => { autoSubmitting = false; autoSubmit(); };
+  }
+}
+async function doSubmit(){
+  if(API_URL){
+    await api({ action:'submit', attemptId:S.attemptId, ...S.info, order:S.order, optOrder:S.optOrder, answers:S.answers,
+                durationSec: Math.round((Date.now()-S.startedAt)/1000) });
+  }
+  clearTimeout(examPollT);
+  S.stage = 'survey'; S.survey = S.survey || {}; save();
+}
+
 /* ---------- 1. 基本資料 ---------- */
 function fillVars(t){
   const n = E.questions.length;
@@ -257,7 +312,7 @@ function initInfo(){
   $('fMax').textContent = E.questions.length * E.pointsPer;
   $('demoBanner').classList.toggle('hide', !!API_URL);
   renderRules(E.rules || [], []);
-  if(API_URL) api({action:'info'}).then(r => { const i = r.info || {}; renderRules(i.rules ? i.rules.split('\n') : (E.rules||[]), i.files || []); }).catch(()=>{});
+  if(API_URL){ applyState({open:null}); pollInfo(true); }
   const old = load();
   if(old && old.info){
     $('resumeBox').classList.remove('hide');
@@ -283,11 +338,11 @@ $('infoForm').onsubmit = async (ev) => {
             : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.email) ? 'Email 格式不正確' : '';
   $('infoErr').textContent = err;
   if(err) return;
-  const btn = $('btnStart'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>確認中…';
+  const btn = $('btnStart'); btn.disabled = true; btn.dataset.busy = 1; btn.innerHTML = '<span class="spin"></span>確認中…';
   try{
     if(API_URL){
       const r = await api({action:'check', empId: info.empId});
-      if(!r.open){ $('infoErr').textContent = '本次考試目前未開放，請洽承辦人。'; return; }
+      if(!r.open){ examOpen = false; $('infoErr').textContent = '考試尚未開始，請等待監考人員開放。'; return; }
       if(r.taken){ $('infoErr').textContent = '此員工編號已經交過卷。如需重考，請洽承辦人。'; return; }
     }
     const order = shuffle(E.questions.map(q=>q.id));
@@ -296,7 +351,7 @@ $('infoForm').onsubmit = async (ev) => {
           attemptId: info.empId + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7) };
     save(); route();
   }catch(e){ $('infoErr').textContent = '連線失敗：' + e.message + '，請稍後再試。'; }
-  finally{ btn.disabled = false; btn.textContent = '開始作答'; }
+  finally{ delete btn.dataset.busy; applyState({open: examOpen}); if(!API_URL){ btn.disabled = false; btn.textContent = '開始作答'; } }
 };
 
 /* ---------- 2. 作答 ---------- */
@@ -370,11 +425,7 @@ function confirmSubmit(){
   $('mY').onclick = async () => {
     const b = $('mY'); b.disabled = true; b.innerHTML = '<span class="spin"></span>送出中…';
     try{
-      if(API_URL){
-        await api({ action:'submit', attemptId:S.attemptId, ...S.info, order:S.order, optOrder:S.optOrder, answers:S.answers,
-                    durationSec: Math.round((Date.now()-S.startedAt)/1000) });
-      }
-      S.stage = 'survey'; S.survey = {}; save(); closeModal(); route();
+      await doSubmit(); closeModal(); route();
     }catch(e){ $('mErr').textContent = '送出失敗：' + e.message + '。作答內容仍保留在本機，請再按一次。'; b.disabled = false; b.textContent = '確定交卷'; }
   };
 }
@@ -441,7 +492,7 @@ $('btnFinish').onclick = () => { clearState(); location.reload(); };
 
 function route(){
   if(!S || !S.info){ initInfo(); return; }
-  if(S.stage === 'exam'){ show('s-exam'); $('who').textContent = `${S.info.name}（${S.info.empId}）`; renderQ(); }
+  if(S.stage === 'exam'){ show('s-exam'); startExamPoll(); $('who').textContent = `${S.info.name}（${S.info.empId}）`; renderQ(); }
   else if(S.stage === 'survey'){ show('s-survey'); renderSurvey(); }
   else if(S.stage === 'result'){ show('s-result'); renderResult(); }
 }

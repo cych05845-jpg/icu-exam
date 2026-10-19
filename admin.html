@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <script>
   // 與 index.html 相同的 Apps Script 網址（也可在登入畫面輸入）
-  const API_URL_DEFAULT = '';
+  const API_URL_DEFAULT = 'https://script.google.com/macros/s/AKfycby8JVngtfoxC9gadUH5B5y9JrhQfbJan6sezGDako32ZWIMNrY2orgleYOUsozx6IeObw/exec';
 </script>
 <script src="exams/list.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -62,6 +62,9 @@ tr.click{cursor:pointer} tr.click:hover{background:var(--accent-soft)}
 .sugg{border-left:3px solid var(--accent);padding:6px 12px;margin:8px 0;background:var(--bg);border-radius:0 8px 8px 0}
 .banner{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:10px 14px;margin:10px 0}
 .qtxt{max-width:440px}
+.switch.on{border:2px solid var(--ok);background:var(--ok-soft)}
+.switch.on #stLbl{color:var(--ok)}
+#btnToggle.stop{background:var(--bad)}
 summary{cursor:pointer;list-style-position:outside}
 #infoCard[open] summary{margin-bottom:4px}
 .frow{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:9px;margin:6px 0}
@@ -112,6 +115,13 @@ td.fail{color:var(--bad);font-weight:700}
   <div id="main" class="hide">
     <div id="demoNote" class="banner hide">目前顯示的是<b>隨機產生的示範資料</b>，不是真實成績。</div>
     <div id="regradeNote" class="banner hide"></div>
+    <div class="card switch" id="switchCard">
+      <div class="row">
+        <div><div class="muted" style="font-size:.9rem">作答狀態</div><div id="stLbl" style="font-size:1.35rem;font-weight:700">–</div><div class="muted" id="stSub" style="font-size:.9rem"></div></div>
+        <span class="spacer"></span>
+        <button class="btn" id="btnToggle" style="font-size:1.1rem;padding:14px 26px">–</button>
+      </div>
+    </div>
     <details class="card" id="infoCard">
       <summary><b style="font-size:1.15rem">考試說明與附件</b> <span class="muted" style="font-size:.9rem">— 考生首頁顯示的考試規則、可下載的資料</span></summary>
       <div class="two" style="margin-top:14px">
@@ -431,10 +441,35 @@ let INFO = {};
 function defaultRules(){ return (E.rules || []).join('\n'); }
 async function loadInfo(id){
   $('rulesMsg').textContent = ''; $('fileMsg').textContent = '';
-  if(isDemo){ INFO = {files:[]}; showInfo(); $('rulesMsg').textContent = '示範模式無法儲存'; return; }
-  try{ INFO = (await call({action:'info', exam:id})).info || {files:[]}; }catch(e){ INFO = {files:[]}; $('rulesMsg').textContent = '讀取失敗：'+e.message; }
+  if(isDemo){ INFO = {files:[]}; showInfo(); renderState({open: !!(LIST.find(e=>e.id===id)||{}).open}); $('rulesMsg').textContent = '示範模式無法儲存'; return; }
+  renderState(null);
+  try{ const r = await call({action:'info', exam:id}); INFO = r.info || {files:[]}; if(EXAM_ID === id) renderState(r.state); }catch(e){ INFO = {files:[]}; $('rulesMsg').textContent = '讀取失敗：'+e.message; }
   if(EXAM_ID === id) showInfo();
 }
+let STATE = null;
+const tfmt = t => t ? new Date(t).toLocaleString('zh-TW', {hour12:false, month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
+function renderState(st){
+  STATE = st;
+  const b = $('btnToggle');
+  if(!st){ $('stLbl').textContent = '讀取中…'; $('stSub').textContent = ''; b.disabled = true; b.textContent = '–'; $('switchCard').classList.remove('on'); return; }
+  b.disabled = false;
+  $('switchCard').classList.toggle('on', !!st.open);
+  $('stLbl').textContent = st.open ? '● 開放作答中' : '○ 未開放作答';
+  $('stSub').textContent = st.open ? (st.openedAt ? `自 ${tfmt(st.openedAt)} 開始。考生頁面會在 10 秒內自動變成可作答。` : '')
+                                   : (st.closedAt ? `已於 ${tfmt(st.closedAt)} 結束。作答中的考生會被自動交卷。` : '考生可以先進首頁填資料等待，按下「開始作答」後才能開始。');
+  b.textContent = st.open ? '結束作答' : '開始作答';
+  b.classList.toggle('stop', !!st.open);
+  const tab = LIST.find(e=>e.id===EXAM_ID); if(tab && tab.open !== !!st.open){ tab.open = !!st.open; buildTabs(); $('tabs').querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.id===EXAM_ID)); }
+}
+$('btnToggle').onclick = async () => {
+  if(!STATE) return;
+  const open = !STATE.open, title = (LIST.find(e=>e.id===EXAM_ID)||{}).title || EXAM_ID;
+  if(!confirm(open ? `確定開始「${title}」？\n考生按下開始作答後即可作答。` : `確定結束「${title}」？\n作答中的考生會在 30 秒內被自動交卷，之後無法再開始作答。`)) return;
+  if(isDemo){ renderState({open, openedAt: open?Date.now():null, closedAt: open?null:Date.now()}); return; }
+  $('btnToggle').disabled = true;
+  try{ const r = await call({action:'setOpen', key:$('adminKey').value, exam:EXAM_ID, open}); renderState(r.state); }
+  catch(e){ $('stSub').textContent = '切換失敗：' + e.message; $('btnToggle').disabled = false; }
+};
 function showInfo(){
   $('rulesTxt').value = INFO.rules != null ? INFO.rules : defaultRules();
   $('fileList').innerHTML = (INFO.files||[]).length ? INFO.files.map(f => `<div class="frow"><a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a><span class="muted" style="font-size:.85rem">${f.size ? Math.round(f.size/1024)+' KB' : ''}</span><button class="btn ghost" data-del="${esc(f.id)}" style="padding:4px 10px">刪除</button></div>`).join('') : '<div class="muted">尚無附件</div>';
