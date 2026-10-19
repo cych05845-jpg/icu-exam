@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>考試成績分析</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+  // 與 index.html 相同的 Apps Script 網址（也可在登入畫面輸入）
+  const API_URL_DEFAULT = '';
+</script>
+<script src="exams/list.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f4f6f5; --card:#fff; --ink:#1c2422; --muted:#5f6b68; --line:#dfe5e3;
+  --accent:#0f6b5c; --accent-soft:#e3f1ee; --ok:#1f7a3f; --ok-soft:#e5f4ea; --bad:#b3261e; --bad-soft:#fbe9e7; --warn:#8a5a00; --warn-soft:#fff4dc;
+  --l5:#0f6b5c; --l4:#5fa596; --l3:#c9d3d0; --l2:#e8a27c; --l1:#c4502f;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#121716; --card:#1b2220; --ink:#e7eeec; --muted:#9aa8a4; --line:#2c3633; --accent:#4fbfa8; --accent-soft:#1d3531;
+    --ok:#6fcf8f; --ok-soft:#183324; --bad:#f08a80; --bad-soft:#3a1d1a; --warn:#f0c060; --warn-soft:#33290f;
+    --l5:#4fbfa8; --l4:#2f7f70; --l3:#4a5552; --l2:#a8664a; --l1:#e07a5c; }
+}
+*{box-sizing:border-box} html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Noto Sans TC",system-ui,"Microsoft JhengHei",sans-serif;font-size:17px;line-height:1.6}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:1.7rem;margin:0}
+h2{font-size:1.25rem;margin:0 0 12px}
+.muted{color:var(--muted)} .hide{display:none!important}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin:14px 0;overflow-x:auto}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap} .spacer{flex:1}
+input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 11px}
+.btn{border:0;border-radius:10px;padding:9px 16px;font:inherit;font-weight:700;cursor:pointer;background:var(--accent);color:#fff}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line);font-weight:500}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.kpi span{font-size:.85rem;color:var(--muted)} .kpi b{display:block;font-size:1.7rem;line-height:1.2;font-variant-numeric:tabular-nums}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px} .two>.card{margin:0}
+@media (max-width:820px){ .two{grid-template-columns:1fr} }
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:500;color:var(--muted);font-size:.9rem;white-space:nowrap;cursor:pointer;user-select:none}
+td.n,th.n{text-align:right}
+tr.click{cursor:pointer} tr.click:hover{background:var(--accent-soft)}
+.hist{display:flex;align-items:flex-end;gap:6px;height:180px;padding-top:10px}
+.hist .b{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.hist .b i{display:block;width:100%;background:var(--accent);border-radius:5px 5px 0 0;min-height:2px}
+.hist .b.fail i{background:var(--l2)}
+.hist .b em{font-style:normal;font-size:.8rem;font-weight:700;margin-bottom:2px}
+.hist .b small{font-size:.72rem;color:var(--muted);margin-top:4px;white-space:nowrap}
+.stack{display:flex;height:22px;border-radius:6px;overflow:hidden;background:var(--line)}
+.stack i{display:block;height:100%}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.bar{height:8px;background:var(--line);border-radius:4px;min-width:60px;overflow:hidden} .bar i{display:block;height:100%;background:var(--accent)}
+.flag{display:inline-block;font-size:.74rem;font-weight:700;border-radius:5px;padding:0 6px;margin:1px 3px 1px 0;white-space:nowrap}
+.flag.bad{background:var(--bad-soft);color:var(--bad)} .flag.warn{background:var(--warn-soft);color:var(--warn)} .flag.ok{background:var(--ok-soft);color:var(--ok)}
+.detail td{background:var(--bg)}
+.opttbl td,.opttbl th{border:0;padding:3px 8px}
+.opttbl tr.key td{color:var(--ok);font-weight:700}
+.sugg{border-left:3px solid var(--accent);padding:6px 12px;margin:8px 0;background:var(--bg);border-radius:0 8px 8px 0}
+.banner{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:10px 14px;margin:10px 0}
+.qtxt{max-width:440px}
+summary{cursor:pointer;list-style-position:outside}
+#infoCard[open] summary{margin-bottom:4px}
+.frow{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:9px;margin:6px 0}
+.frow a{color:var(--accent);flex:1;word-break:break-all}
+.etabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:14px 0 4px;overflow-x:auto}
+.etabs button{font:inherit;padding:10px 16px;border:0;background:transparent;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.etabs button.on{color:var(--ink);font-weight:700;border-bottom-color:var(--accent)}
+.etabs button small{display:block;font-size:.75rem;font-weight:400;color:var(--muted)}
+.etabs .cmpTab{margin-left:auto}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:5px;vertical-align:1px}
+td.fail{color:var(--bad);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row"><h1>考試成績分析</h1><span class="spacer"></span><span class="muted" id="updated"></span></div>
+
+  <div class="card" id="login">
+    <h2>登入</h2>
+    <div class="row">
+      <input id="apiUrl" placeholder="Apps Script 網址" style="flex:2;min-width:260px">
+      <input id="adminKey" type="password" placeholder="分析密碼（Code.gs 的 ADMIN_KEY）" style="flex:1;min-width:200px">
+      <button class="btn" id="btnLoad">載入資料</button>
+      <button class="btn ghost" id="btnDemo">看示範資料</button>
+    </div>
+    <div class="muted" id="loginMsg" style="margin-top:8px"></div>
+  </div>
+
+  <div id="tabs" class="etabs hide"></div>
+  <div id="tabErr" class="banner hide"></div>
+
+  <div id="cmp" class="hide">
+    <div class="row" style="margin:6px 0">
+      <label>及格分數 <input id="passC" type="number" min="0" max="100" style="width:80px"></label>
+      <label>單位 <select id="unitC"><option value="">全部</option></select></label>
+      <span class="spacer"></span><button class="btn" id="btnXlsxC">下載 Excel</button>
+    </div>
+    <div class="card"><h2>各次考試比較</h2><table id="cmpTbl"></table></div>
+    <div class="card"><h2>各單位 × 各次平均分數</h2><table id="cmpUnit"></table></div>
+    <div class="card">
+      <div class="row"><h2 style="margin:0">個人歷次成績</h2><span class="spacer"></span>
+        <label class="muted" style="font-size:.9rem"><input type="checkbox" id="onlyFail"> 只看曾未及格</label>
+        <input id="searchC" placeholder="搜尋姓名／員編"></div>
+      <table id="cmpPeople" style="margin-top:10px"></table>
+    </div>
+  </div>
+
+  <div id="main" class="hide">
+    <div id="demoNote" class="banner hide">目前顯示的是<b>隨機產生的示範資料</b>，不是真實成績。</div>
+    <div id="regradeNote" class="banner hide"></div>
+    <details class="card" id="infoCard">
+      <summary><b style="font-size:1.15rem">考試說明與附件</b> <span class="muted" style="font-size:.9rem">— 考生首頁顯示的考試規則、可下載的資料</span></summary>
+      <div class="two" style="margin-top:14px">
+        <div>
+          <div class="muted" style="font-size:.9rem;margin-bottom:6px">考試規則（一行一條，會自動編號；可用 {題數}、{每題分數}、{滿分}）</div>
+          <textarea id="rulesTxt" rows="9" style="width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:10px"></textarea>
+          <div class="row" style="margin-top:8px"><button class="btn" id="btnSaveRules">儲存規則</button><button class="btn ghost" id="btnResetRules">還原成預設</button><span class="muted" id="rulesMsg" style="font-size:.9rem"></span></div>
+        </div>
+        <div>
+          <div class="muted" style="font-size:.9rem;margin-bottom:6px">附件（PDF、Word、圖片等，每個 10MB 內；存到你的雲端硬碟「線上考試附件」資料夾）</div>
+          <div id="fileList"></div>
+          <label class="btn ghost" style="display:inline-block;margin-top:8px">＋ 上傳檔案<input type="file" id="fileIn" multiple hidden></label>
+          <span class="muted" id="fileMsg" style="font-size:.9rem;margin-left:8px"></span>
+        </div>
+      </div>
+    </details>
+    <div class="row" style="margin:6px 0">
+      <label>及格分數 <input id="pass" type="number" min="0" max="100" style="width:80px"></label>
+      <label>單位 <select id="unitFilter"><option value="">全部</option></select></label>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="btnRefresh">重新整理</button>
+      <button class="btn" id="btnXlsx">下載 Excel</button>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="two" style="margin-top:14px">
+      <div class="card"><h2>分數分布</h2><div class="hist" id="hist"></div><div class="legend"><span><i style="background:var(--accent)"></i>及格</span><span><i style="background:var(--l2)"></i>未及格</span></div></div>
+      <div class="card"><h2>各單位成績</h2><table id="unitTbl"></table></div>
+    </div>
+
+    <div class="card">
+      <div class="row"><h2 style="margin:0">常錯題 Top <select id="wrongN"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></h2><span class="spacer"></span>
+        <span class="muted" style="font-size:.85rem">依答對率由低到高；「最常選的錯誤選項」可看出大家的迷思概念</span></div>
+      <table id="wrongTbl" style="margin-top:10px"></table>
+    </div>
+
+    <div class="card">
+      <div class="row"><h2 style="margin:0">題目分析</h2><span class="spacer"></span>
+        <span class="muted" style="font-size:.85rem">答對率 P＝全體答對比例；鑑別度 D＝高分組(前27%)答對率 − 低分組(後27%)答對率。點題目看選項分布。</span></div>
+      <table id="itemTbl" style="margin-top:10px"></table>
+    </div>
+
+    <div class="card">
+      <h2>滿意度</h2>
+      <div id="sat"></div>
+      <div class="legend"><span><i style="background:var(--l5)"></i>非常滿意</span><span><i style="background:var(--l4)"></i>滿意</span><span><i style="background:var(--l3)"></i>普通</span><span><i style="background:var(--l2)"></i>不滿意</span><span><i style="background:var(--l1)"></i>非常不滿意</span></div>
+    </div>
+
+    <div class="card"><h2>開放性建議 <span class="muted" id="suggN"></span></h2><div id="sugg"></div></div>
+
+    <div class="card">
+      <div class="row"><h2 style="margin:0">個人成績</h2><span class="spacer"></span><input id="search" placeholder="搜尋姓名／員編"></div>
+      <table id="peopleTbl" style="margin-top:10px"></table>
+    </div>
+  </div>
+</div>
+
+<script>
+let E = null, QMAP = {}, EXAM_ID = null, RAWS = {}, ERRS = {}, LIST = [];
+const $ = id => document.getElementById(id);
+const L = 'ABCDEFGH';
+const SAT = ['電子考試','場地','時間安排','整體滿意度'];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ls = { get(k,d){ try{ const v = localStorage.getItem(k); return v===null?d:v; }catch(e){ return d; } }, set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} } };
+const fmt = (x,d=1) => (x==null||isNaN(x)) ? '–' : Number(x).toFixed(d);
+const pct = x => (x==null||isNaN(x)) ? '–' : Math.round(x*100)+'%';
+
+let DATA = [], KEY = {}, PTS = 2, QIDS = [], isDemo = false;
+let itemSort = {k:'order', dir:1}, peopleSort = {k:'score', dir:-1};
+
+$('apiUrl').value = ls.get('exam_admin_api', API_URL_DEFAULT);
+$('pass').value = $('passC').value = ls.get('exam_admin_pass', '80');
+
+async function call(payload){
+  const r = await fetch($('apiUrl').value.trim(), {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)});
+  const j = await r.json(); if(!j.ok) throw new Error(j.error||'伺服器錯誤'); return j;
+}
+function loadExamFile(id){
+  return new Promise(ok => { if(window.EXAMS && window.EXAMS[id]) return ok();
+    const sc = document.createElement('script'); sc.src = 'exams/' + encodeURIComponent(id) + '.js'; sc.onload = sc.onerror = () => ok(); document.head.appendChild(sc); });
+}
+async function loadData(){
+  const url = $('apiUrl').value.trim(); if(!url){ $('loginMsg').textContent = '請輸入 Apps Script 網址'; return; }
+  ls.set('exam_admin_api', url);
+  $('loginMsg').textContent = '載入中…';
+  try{
+    const ex = await call({action:'exams', key: $('adminKey').value});
+    const front = window.EXAM_LIST || [];
+    // 以後端 Code.gs 的考試為準，題目文字由 exams/ 題目檔提供
+    LIST = ex.exams.map(e => ({...e, title: e.title || (front.find(f=>f.id===e.id)||{}).title || e.id}));
+    await Promise.all(LIST.map(e => loadExamFile(e.id)));
+    RAWS = {}; ERRS = {};
+    await Promise.all(LIST.map(async e => { try{ RAWS[e.id] = await call({action:'stats', key:$('adminKey').value, exam:e.id}); }catch(err){ ERRS[e.id] = err.message; } }));
+    isDemo = false; afterLoad(); $('loginMsg').textContent = '';
+  }catch(e){ $('loginMsg').textContent = '載入失敗：' + e.message; }
+}
+function afterLoad(){
+  $('login').classList.toggle('hide', !isDemo);
+  $('demoNote').classList.toggle('hide', !isDemo);
+  $('updated').textContent = '更新：' + new Date().toLocaleString('zh-TW', {hour12:false});
+  const keep = EXAM_ID && (EXAM_ID==='__cmp' || RAWS[EXAM_ID]) ? EXAM_ID : (LIST.filter(e=>RAWS[e.id]).slice(-1)[0]||{}).id;
+  buildTabs(); selectTab(keep || '__cmp');
+}
+function buildTabs(){
+  $('tabs').classList.remove('hide');
+  $('tabs').innerHTML = LIST.map(e => `<button data-id="${esc(e.id)}">${e.open?'<span class="dot" title="開放作答中"></span>':''}${esc(e.title)}<small>${RAWS[e.id] ? RAWS[e.id].rows.filter(r=>r[1]).length+' 人' : '讀取失敗'}</small></button>`).join('')
+    + (LIST.length > 1 ? `<button class="cmpTab" data-id="__cmp">跨次比較<small>${LIST.length} 次考試</small></button>` : '');
+  $('tabs').querySelectorAll('button').forEach(b => b.onclick = () => selectTab(b.dataset.id));
+}
+function examDef(id){ return (window.EXAMS||{})[id] || (isDemo ? window.EXAMS[window.ACTIVE_EXAM] : null) || {questions:[]}; }
+function selectTab(id){
+  EXAM_ID = id;
+  $('tabs').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.id===id));
+  const isCmp = id === '__cmp';
+  $('cmp').classList.toggle('hide', !isCmp);
+  $('tabErr').classList.toggle('hide', isCmp || !ERRS[id]);
+  if(!isCmp && ERRS[id]){ $('tabErr').textContent = '讀取失敗：' + ERRS[id]; $('main').classList.add('hide'); return; }
+  if(isCmp){ $('main').classList.add('hide'); renderCmp(); return; }
+  E = examDef(id); QMAP = Object.fromEntries(E.questions.map(q=>[q.id,q]));
+  openItem = null; ingest(RAWS[id]); loadInfo(id);
+}
+$('btnLoad').onclick = loadData;
+$('adminKey').onkeydown = e => { if(e.key==='Enter') loadData(); };
+$('btnRefresh').onclick = () => isDemo ? demo() : loadData();
+$('passC').oninput = () => { $('pass').value = $('passC').value; ls.set('exam_admin_pass', $('passC').value); renderCmp(); };
+$('unitC').onchange = renderCmp; $('searchC').oninput = renderCmp; $('onlyFail').onchange = renderCmp;
+$('btnDemo').onclick = demo;
+$('pass').oninput = () => { $('passC').value = $('pass').value; ls.set('exam_admin_pass', $('pass').value); render(); };
+$('unitFilter').onchange = render;
+$('search').oninput = renderPeople;
+
+function parse(raw){
+  const key = {}; Object.entries(raw.key).forEach(([k,v]) => key[+k] = v);
+  const pts = raw.points || 2, qids = Object.keys(key).map(Number).sort((a,b)=>a-b);
+  const KEY = key, PTS = pts, QIDS = qids;
+  const h = {}; raw.header.forEach((c,i)=>h[c]=i);
+  const data = raw.rows.filter(r => r[h['attemptId']]).map(r => {
+    const ans = {}; QIDS.forEach(q => ans[q] = String(r[h['Q'+q]] ?? '').trim());
+    const correct = QIDS.filter(q => ans[q] && ans[q]===KEY[q]).length;
+    const s = SAT.map(c => { const v = Number(r[h[c]]); return v>=1&&v<=5 ? v : null; });
+    return { time:r[h['提交時間']], name:r[h['姓名']], empId:String(r[h['員編']]).replace(/^'/,''), unit:String(r[h['單位']]||'').trim()||'(未填)',
+      email:r[h['Email']], dur:Number(r[h['作答秒數']])||null, ans, correct, total:QIDS.length, score:correct*PTS, max:QIDS.length*PTS,
+      storedScore:Number(r[h['得分']]), sat:s, sugg:String(r[h['建議']]||'').trim(), surveyed: !!r[h['問卷時間']] };
+  });
+  return {key, pts, qids, data, max: qids.length*pts};
+}
+function ingest(raw){
+  const P = parse(raw); KEY = P.key; PTS = P.pts; QIDS = P.qids; DATA = P.data;
+  const units = [...new Set(DATA.map(d=>d.unit))].sort();
+  $('unitFilter').innerHTML = '<option value="">全部</option>' + units.map(u=>`<option>${esc(u)}</option>`).join('');
+  const stale = DATA.filter(d => d.storedScore !== d.score).length;
+  $('regradeNote').classList.toggle('hide', !stale || isDemo);
+  if(stale && !isDemo){
+    $('regradeNote').innerHTML = `有 ${stale} 位考生在試算表中的得分與「目前的標準答案」不一致（可能是交卷後修改過答案）。本頁一律以目前答案計算。 <button class="btn" id="btnRegrade" style="margin-left:8px">同步更新試算表得分</button>`;
+    $('btnRegrade').onclick = async () => { try{ const r = await call({action:'regrade', key:$('adminKey').value, exam:EXAM_ID}); alertNote(`已更新 ${r.updated} 筆`); loadData(); }catch(e){ alertNote('更新失敗：'+e.message); } };
+  }
+  $('main').classList.remove('hide');
+  render();
+}
+function alertNote(t){ $('regradeNote').classList.remove('hide'); $('regradeNote').textContent = t; }
+
+function cur(){ const u = $('unitFilter').value; return u ? DATA.filter(d=>d.unit===u) : DATA; }
+function stats(arr){
+  const n = arr.length; if(!n) return {n:0};
+  const s = arr.slice().sort((a,b)=>a-b), mean = s.reduce((a,b)=>a+b,0)/n;
+  const sd = Math.sqrt(s.reduce((a,b)=>a+(b-mean)**2,0)/(n>1?n-1:1));
+  const med = n%2 ? s[(n-1)/2] : (s[n/2-1]+s[n/2])/2;
+  return {n, mean, sd, med, min:s[0], max:s[n-1]};
+}
+
+function wrongData(){
+  const items = itemData(), n = cur().length;
+  return items.slice().sort((a,b)=>a.P-b.P || b.D-a.D).map(it => {
+    let top = null;
+    Object.keys(it.dist).forEach(o => { if(o!==it.key && it.dist[o]>0 && (!top || it.dist[o]>it.dist[top])) top = o; });
+    return {...it, n, wrongN: n - Math.round(it.P*n), top, topN: top!=null ? it.dist[top] : 0,
+      topText: top==null ? '' : (top==='' ? '（未作答）' : it.opts[L.indexOf(top)] || top), keyText: it.opts[L.indexOf(it.key)] || it.key};
+  });
+}
+function renderWrong(){
+  const k = +$('wrongN').value, rows = wrongData().slice(0,k);
+  $('wrongTbl').innerHTML = `<tr><th>#</th><th>題號</th><th>題目</th><th class="n">答對率</th><th class="n">答錯人數</th><th>最常選的錯誤選項</th><th>正確答案</th></tr>` +
+    rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.q}</td><td class="qtxt">${esc(r.text)}</td>
+      <td class="n" style="font-weight:700;color:${r.P<0.5?'var(--bad)':'inherit'}">${pct(r.P)}</td><td class="n">${r.wrongN}</td>
+      <td>${r.top!=null?`<span class="flag bad">${r.top||'—'}</span>${esc(r.topText)} <span class="muted">（${r.topN}人，${pct(r.n?r.topN/r.n:0)}）</span>`:'–'}</td>
+      <td><span class="flag ok">${r.key}</span>${esc(r.keyText)}</td></tr>`).join('');
+}
+$('wrongN').onchange = renderWrong;
+
+function render(){ renderKpis(); renderHist(); renderUnits(); renderWrong(); renderItems(); renderSat(); renderSugg(); renderPeople(); }
+
+function renderKpis(){
+  const d = cur(), pass = +$('pass').value, st = stats(d.map(x=>x.score));
+  const passN = d.filter(x=>x.score>=pass).length;
+  const durs = d.map(x=>x.dur).filter(Boolean);
+  const dm = durs.length ? stats(durs).med : null;
+  const max = QIDS.length*PTS;
+  // KR-20 信度
+  let kr = null;
+  if(d.length > 2){
+    const k = QIDS.length, totals = d.map(x=>x.correct), mt = totals.reduce((a,b)=>a+b,0)/d.length;
+    const vt = totals.reduce((a,b)=>a+(b-mt)**2,0)/d.length;
+    const pq = QIDS.reduce((a,q)=>{ const p = d.filter(x=>x.ans[q]===KEY[q]).length/d.length; return a+p*(1-p); },0);
+    kr = vt>0 ? (k/(k-1))*(1-pq/vt) : null;
+  }
+  const items = [
+    ['應考人數', st.n||0], ['平均分數', fmt(st.mean)+` <small class="muted" style="font-size:.9rem">/ ${max}</small>`], ['中位數', fmt(st.med,0)],
+    ['標準差', fmt(st.sd)], ['最高 / 最低', st.n ? `${st.max} / ${st.min}` : '–'],
+    [`及格率（≥${pass}）`, st.n ? pct(passN/st.n)+` <small class="muted" style="font-size:.9rem">${passN}人</small>` : '–'],
+    ['作答時間中位數', dm ? Math.round(dm/60)+' 分' : '–'], ['KR-20 信度', kr==null?'–':fmt(kr,2)]
+  ];
+  $('kpis').innerHTML = items.map(([a,b])=>`<div class="kpi"><span>${a}</span><b>${b}</b></div>`).join('');
+}
+
+function renderHist(){
+  const d = cur(), pass = +$('pass').value, max = QIDS.length*PTS;
+  const bins = []; for(let lo=0; lo<=max; lo+=10) bins.push({lo, hi:Math.min(lo+9, max), n:0});
+  d.forEach(x => { const b = bins[Math.min(Math.floor(x.score/10), bins.length-1)]; b.n++; });
+  const top = Math.max(1, ...bins.map(b=>b.n));
+  $('hist').innerHTML = bins.map(b=>`<div class="b ${b.hi<pass?'fail':''}" title="${b.lo}–${b.hi} 分：${b.n} 人"><em>${b.n||''}</em><i style="height:${b.n/top*100}%"></i><small>${b.lo}${b.hi>b.lo?'–'+b.hi:''}</small></div>`).join('');
+}
+
+function renderUnits(){
+  const pass = +$('pass').value, g = {};
+  DATA.forEach(x => (g[x.unit] = g[x.unit] || []).push(x));
+  const rows = Object.entries(g).map(([u,a]) => { const s = stats(a.map(x=>x.score)); return {u, ...s, pass:a.filter(x=>x.score>=pass).length/a.length}; }).sort((a,b)=>b.n-a.n);
+  $('unitTbl').innerHTML = `<tr><th>單位</th><th class="n">人數</th><th class="n">平均</th><th class="n">最高</th><th class="n">最低</th><th class="n">及格率</th></tr>` +
+    rows.map(r=>`<tr><td>${esc(r.u)}</td><td class="n">${r.n}</td><td class="n">${fmt(r.mean)}</td><td class="n">${r.max}</td><td class="n">${r.min}</td><td class="n">${pct(r.pass)}</td></tr>`).join('');
+}
+
+function itemData(){
+  const d = cur(); const n = d.length; if(!n) return [];
+  const sorted = d.slice().sort((a,b)=>b.correct-a.correct);
+  const k = Math.max(1, Math.round(n*0.27));
+  const up = sorted.slice(0,k), lo = sorted.slice(-k);
+  return QIDS.map((q,i) => {
+    const q0 = QMAP[q]; const nOpt = q0 ? q0.opts.length : 5;
+    const rate = arr => arr.filter(x=>x.ans[q]===KEY[q]).length/arr.length;
+    const P = rate(d), D = rate(up) - rate(lo);
+    const dist = {}, dUp = {}, dLo = {};
+    [...L.slice(0,nOpt).split(''), ''].forEach(o => { dist[o]=d.filter(x=>x.ans[q]===o).length; dUp[o]=up.filter(x=>x.ans[q]===o).length; dLo[o]=lo.filter(x=>x.ans[q]===o).length; });
+    const flags = [];
+    const suspect = Object.keys(dUp).some(o => o && o!==KEY[q] && dUp[o] > dUp[KEY[q]]);
+    if(n >= 5){
+      if(D < 0 || suspect) flags.push(['bad','請檢查答案']);
+      else if(D < 0.2) flags.push(['warn','鑑別度低']);
+      if(P < 0.3) flags.push(['warn','偏難']);
+      if(P > 0.9) flags.push(['ok','偏易']);
+    }
+    return {order:i, q, text: q0 ? q0.q : `Q${q}`, P, D, dist, dUp, dLo, flags, nOpt, key:KEY[q], opts:q0?q0.opts:[]};
+  });
+}
+let openItem = null;
+function renderItems(){
+  const items = itemData();
+  const s = itemSort; items.sort((a,b)=> (a[s.k]-b[s.k])*s.dir);
+  const head = [['order','題號'],['text','題目'],['P','答對率 P'],['D','鑑別度 D'],['flags','提示']];
+  $('itemTbl').innerHTML = `<tr>${head.map(([k,t])=>`<th data-k="${k}" class="${k==='P'||k==='D'?'n':''}">${t}${s.k===k?(s.dir>0?' ▲':' ▼'):''}</th>`).join('')}</tr>` +
+    items.map(it => `<tr class="click" data-q="${it.q}"><td>${it.q}</td><td class="qtxt">${esc(it.text)}</td>
+      <td class="n"><div class="row" style="gap:6px;justify-content:flex-end;flex-wrap:nowrap"><div class="bar" style="width:70px"><i style="width:${it.P*100}%"></i></div>${pct(it.P)}</div></td>
+      <td class="n">${fmt(it.D,2)}</td><td>${it.flags.map(([c,t])=>`<span class="flag ${c}">${t}</span>`).join('')}</td></tr>` +
+      (openItem===it.q ? `<tr class="detail"><td></td><td colspan="4"><table class="opttbl"><tr><th>選項</th><th>內容</th><th class="n">全體</th><th class="n">高分組</th><th class="n">低分組</th></tr>
+        ${Object.keys(it.dist).map(o=>`<tr class="${o===it.key?'key':''}"><td>${o||'未答'}</td><td>${esc(o?it.opts[L.indexOf(o)]??'':'')}${o===it.key?' ✓':''}</td><td class="n">${it.dist[o]}</td><td class="n">${it.dUp[o]}</td><td class="n">${it.dLo[o]}</td></tr>`).join('')}
+        </table><div class="muted" style="font-size:.8rem;margin-top:4px">選項字母為題庫原始順序（考生畫面上是隨機排列）。</div></td></tr>` : '')).join('');
+  $('itemTbl').querySelectorAll('th').forEach(th => th.onclick = () => { const k = th.dataset.k; if(k==='text'||k==='flags') return; itemSort = {k, dir: itemSort.k===k ? -itemSort.dir : (k==='order'?1:1)}; renderItems(); });
+  $('itemTbl').querySelectorAll('tr.click').forEach(tr => tr.onclick = () => { const q = +tr.dataset.q; openItem = openItem===q ? null : q; renderItems(); });
+}
+
+function renderSat(){
+  const d = cur().filter(x=>x.surveyed);
+  $('sat').innerHTML = `<div class="muted" style="margin-bottom:8px">填答 ${d.length} 人</div>` + SAT.map((name,i) => {
+    const v = d.map(x=>x.sat[i]).filter(x=>x); const n = v.length;
+    const c = [5,4,3,2,1].map(k => v.filter(x=>x===k).length);
+    const mean = n ? v.reduce((a,b)=>a+b,0)/n : null;
+    return `<div style="margin:12px 0"><div class="row" style="margin-bottom:4px"><b>${name}</b><span class="spacer"></span><span>平均 <b>${fmt(mean,2)}</b> / 5　滿意以上 <b>${n?pct((c[0]+c[1])/n):'–'}</b></span></div>
+      <div class="stack">${c.map((k,j)=>k?`<i style="width:${k/n*100}%;background:var(--l${5-j})" title="${['非常滿意','滿意','普通','不滿意','非常不滿意'][j]}：${k} 人"></i>`:'').join('')}</div></div>`;
+  }).join('');
+}
+function renderSugg(){
+  const s = cur().filter(x=>x.sugg);
+  $('suggN').textContent = `（${s.length} 則）`;
+  $('sugg').innerHTML = s.length ? s.map(x=>`<div class="sugg">${esc(x.sugg)}<div class="muted" style="font-size:.8rem">${esc(x.unit)}</div></div>`).join('') : '<div class="muted">尚無建議</div>';
+}
+function renderPeople(){
+  const q = $('search').value.trim().toLowerCase(), pass = +$('pass').value;
+  let d = cur().filter(x => !q || String(x.name).toLowerCase().includes(q) || x.empId.toLowerCase().includes(q));
+  const s = peopleSort; d = d.slice().sort((a,b)=> (a[s.k] > b[s.k] ? 1 : a[s.k] < b[s.k] ? -1 : 0) * s.dir);
+  const head = [['name','姓名'],['empId','員編'],['unit','單位'],['score','得分'],['correct','答對'],['dur','作答時間'],['time','交卷時間'],['surveyed','問卷']];
+  $('peopleTbl').innerHTML = `<tr>${head.map(([k,t])=>`<th data-k="${k}">${t}${s.k===k?(s.dir>0?' ▲':' ▼'):''}</th>`).join('')}</tr>` +
+    d.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.empId)}</td><td>${esc(x.unit)}</td><td style="font-weight:700;color:${x.score>=pass?'inherit':'var(--bad)'}">${x.score}</td><td>${x.correct}/${x.total}</td><td>${x.dur?Math.round(x.dur/60)+' 分':'–'}</td><td>${esc(x.time)}</td><td>${x.surveyed?'✓':'<span class="muted">未填</span>'}</td></tr>`).join('');
+  $('peopleTbl').querySelectorAll('th').forEach(th => th.onclick = () => { const k = th.dataset.k; peopleSort = {k, dir: peopleSort.k===k ? -peopleSort.dir : -1}; renderPeople(); });
+}
+
+$('btnXlsx').onclick = () => {
+  if(!window.XLSX){ alertNote('Excel 元件載入失敗，請確認網路'); return; }
+  const d = cur(), wb = XLSX.utils.book_new();
+  const people = d.map(x => { const o = {姓名:x.name, 員編:x.empId, 單位:x.unit, Email:x.email, 得分:x.score, 答對題數:x.correct, 題數:x.total, 作答分鐘:x.dur?Math.round(x.dur/60):'', 交卷時間:x.time};
+    SAT.forEach((c,i)=>o[c]=x.sat[i]??''); o['建議']=x.sugg; QIDS.forEach(q=>o['Q'+q]=(x.ans[q]||'')+(x.ans[q]===KEY[q]?' ✓':'')); return o; });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(people), '個人成績');
+  const items = itemData().map(it => { const o = {題號:it.q, 題目:it.text, 標準答案:it.key, 答對率P:+it.P.toFixed(3), 鑑別度D:+it.D.toFixed(3), 提示:it.flags.map(f=>f[1]).join('、')};
+    Object.keys(it.dist).forEach(k => o['選'+(k||'未答')] = it.dist[k]); return o; });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(items), '題目分析');
+  const wrong = wrongData().map((r,i)=>({排名:i+1, 題號:r.q, 題目:r.text, 答對率:+r.P.toFixed(3), 答錯人數:r.wrongN,
+    最常選的錯誤選項:r.top==null?'':`${r.top||'未答'} ${r.topText}`, 選該錯誤選項人數:r.topN, 正確答案:`${r.key} ${r.keyText}`}));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(wrong), '常錯題');
+  const sv = d.filter(x=>x.surveyed);
+  const sat = SAT.map((c,i) => { const v = sv.map(x=>x.sat[i]).filter(Boolean); const o = {項目:c, 填答人數:v.length, 平均:v.length?+(v.reduce((a,b)=>a+b,0)/v.length).toFixed(2):''};
+    [5,4,3,2,1].forEach(k=>o[['','非常不滿意','不滿意','普通','滿意','非常滿意'][k]] = v.filter(x=>x===k).length); return o; });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sat), '滿意度');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(d.filter(x=>x.sugg).map(x=>({單位:x.unit, 建議:x.sugg}))), '建議');
+  XLSX.writeFile(wb, `${(LIST.find(e=>e.id===EXAM_ID)||{}).title||EXAM_ID}_成績分析_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+/* ---------- 考試說明與附件 ---------- */
+let INFO = {};
+function defaultRules(){ return (E.rules || []).join('\n'); }
+async function loadInfo(id){
+  $('rulesMsg').textContent = ''; $('fileMsg').textContent = '';
+  if(isDemo){ INFO = {files:[]}; showInfo(); $('rulesMsg').textContent = '示範模式無法儲存'; return; }
+  try{ INFO = (await call({action:'info', exam:id})).info || {files:[]}; }catch(e){ INFO = {files:[]}; $('rulesMsg').textContent = '讀取失敗：'+e.message; }
+  if(EXAM_ID === id) showInfo();
+}
+function showInfo(){
+  $('rulesTxt').value = INFO.rules != null ? INFO.rules : defaultRules();
+  $('fileList').innerHTML = (INFO.files||[]).length ? INFO.files.map(f => `<div class="frow"><a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a><span class="muted" style="font-size:.85rem">${f.size ? Math.round(f.size/1024)+' KB' : ''}</span><button class="btn ghost" data-del="${esc(f.id)}" style="padding:4px 10px">刪除</button></div>`).join('') : '<div class="muted">尚無附件</div>';
+  $('fileList').querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    if(!confirm('確定刪除這個附件？')) return;
+    try{ INFO = (await call({action:'deleteFile', key:$('adminKey').value, exam:EXAM_ID, id:b.dataset.del})).info; showInfo(); }catch(e){ $('fileMsg').textContent = '刪除失敗：'+e.message; }
+  });
+}
+$('btnSaveRules').onclick = async () => {
+  if(isDemo) return;
+  $('rulesMsg').textContent = '儲存中…';
+  try{ INFO = (await call({action:'saveInfo', key:$('adminKey').value, exam:EXAM_ID, rules:$('rulesTxt').value.trim()})).info; showInfo(); $('rulesMsg').textContent = '已儲存，考生重新整理首頁就會看到 ✓'; }
+  catch(e){ $('rulesMsg').textContent = '儲存失敗：'+e.message; }
+};
+$('btnResetRules').onclick = async () => {
+  if(isDemo) return;
+  try{ INFO = (await call({action:'saveInfo', key:$('adminKey').value, exam:EXAM_ID, rules:null})).info; showInfo(); $('rulesMsg').textContent = '已還原成題目檔中的預設規則'; }
+  catch(e){ $('rulesMsg').textContent = '失敗：'+e.message; }
+};
+$('fileIn').onchange = async (ev) => {
+  const files = [...ev.target.files]; ev.target.value = '';
+  if(isDemo){ $('fileMsg').textContent = '示範模式無法上傳'; return; }
+  for(const f of files){
+    if(f.size > 10*1024*1024){ $('fileMsg').textContent = `${f.name} 超過 10MB`; continue; }
+    $('fileMsg').textContent = `上傳中：${f.name}…`;
+    const data = await new Promise((ok,no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = no; r.readAsDataURL(f); });
+    try{
+      const r = await call({action:'upload', key:$('adminKey').value, exam:EXAM_ID, name:f.name, mime:f.type, data});
+      INFO = r.info; showInfo(); $('fileMsg').textContent = r.warn || `已上傳 ${f.name} ✓`;
+    }catch(e){ $('fileMsg').textContent = `上傳失敗（${f.name}）：${e.message}`; }
+  }
+};
+
+/* ---------- 跨次比較 ---------- */
+function cmpData(){
+  const u = $('unitC').value;
+  return LIST.filter(e => RAWS[e.id]).map(e => {
+    const P = parse(RAWS[e.id]); const d = u ? P.data.filter(x=>x.unit===u) : P.data;
+    return {...e, ...P, d};
+  });
+}
+function renderCmp(){
+  const ex = cmpData(), pass = +$('passC').value;
+  const units = [...new Set(LIST.filter(e=>RAWS[e.id]).flatMap(e => parse(RAWS[e.id]).data.map(x=>x.unit)))].sort();
+  const cu = $('unitC').value;
+  $('unitC').innerHTML = '<option value="">全部</option>' + units.map(x=>`<option ${x===cu?'selected':''}>${esc(x)}</option>`).join('');
+  // 各次比較
+  const rows = ex.map(e => {
+    const sc = e.d.map(x => x.score / e.max * 100); const st = stats(sc);
+    const sv = e.d.filter(x=>x.surveyed);
+    const satM = SAT.map((_,i) => { const v = sv.map(x=>x.sat[i]).filter(Boolean); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null; });
+    return {e, st, passR: e.d.length ? e.d.filter(x=>x.score/e.max*100>=pass).length/e.d.length : null, satM};
+  });
+  $('cmpTbl').innerHTML = `<tr><th>考試</th><th class="n">人數</th><th>平均分數（百分制）</th><th class="n">中位數</th><th class="n">標準差</th><th>及格率</th>${SAT.map(c=>`<th class="n">${c}</th>`).join('')}</tr>` +
+    rows.map(r => `<tr><td><b>${esc(r.e.title)}</b><div class="muted" style="font-size:.8rem">${r.e.qids.length} 題，滿分 ${r.e.max}</div></td><td class="n">${r.st.n||0}</td>
+      <td><div class="row" style="gap:8px;flex-wrap:nowrap"><div class="bar" style="width:120px"><i style="width:${r.st.mean||0}%"></i></div><b>${fmt(r.st.mean)}</b></div></td>
+      <td class="n">${fmt(r.st.med,0)}</td><td class="n">${fmt(r.st.sd)}</td>
+      <td><div class="row" style="gap:8px;flex-wrap:nowrap"><div class="bar" style="width:90px"><i style="width:${(r.passR||0)*100}%"></i></div>${pct(r.passR)}</div></td>
+      ${r.satM.map(m=>`<td class="n">${fmt(m,2)}</td>`).join('')}</tr>`).join('') +
+    `<tr><td colspan="${6+SAT.length}" class="muted" style="font-size:.8rem;border:0">各次題數可能不同，分數一律換算成百分制比較；滿意度為 1–5 分平均。</td></tr>`;
+  // 單位 × 各次
+  const allUnits = [...new Set(ex.flatMap(e => parse(RAWS[e.id]).data.map(x=>x.unit)))].sort();
+  $('cmpUnit').innerHTML = `<tr><th>單位</th>${ex.map(e=>`<th class="n">${esc(e.title)}</th>`).join('')}</tr>` +
+    allUnits.map(un => `<tr><td>${esc(un)}</td>${ex.map(e => { const P = parse(RAWS[e.id]); const a = P.data.filter(x=>x.unit===un); if(!a.length) return '<td class="n muted">–</td>';
+      const m = a.reduce((s,x)=>s+x.score/P.max*100,0)/a.length; return `<td class="n ${m<pass?'fail':''}">${fmt(m)} <span class="muted" style="font-size:.8rem;font-weight:400">(${a.length}人)</span></td>`; }).join('')}</tr>`).join('');
+  // 個人歷次
+  const ppl = {};
+  ex.forEach(e => e.d.forEach(x => { const p = ppl[x.empId] = ppl[x.empId] || {empId:x.empId, name:x.name, unit:x.unit, s:{}}; p.name = x.name; p.unit = x.unit; p.s[e.id] = Math.round(x.score/e.max*1000)/10; }));
+  let list = Object.values(ppl).map(p => { const v = Object.values(p.s); return {...p, n:v.length, mean: v.reduce((a,b)=>a+b,0)/v.length, fails: v.filter(x=>x<pass).length}; });
+  const q = $('searchC').value.trim().toLowerCase();
+  if(q) list = list.filter(p => String(p.name).toLowerCase().includes(q) || p.empId.toLowerCase().includes(q));
+  if($('onlyFail').checked) list = list.filter(p => p.fails);
+  list.sort((a,b) => b.fails-a.fails || a.mean-b.mean);
+  $('cmpPeople').innerHTML = `<tr><th>姓名</th><th>員編</th><th>單位</th>${ex.map(e=>`<th class="n">${esc(e.title)}</th>`).join('')}<th class="n">平均</th><th class="n">未及格次數</th></tr>` +
+    list.map(p => `<tr><td>${esc(p.name)}</td><td>${esc(p.empId)}</td><td>${esc(p.unit)}</td>${ex.map(e => p.s[e.id]==null ? '<td class="n muted">未考</td>' : `<td class="n ${p.s[e.id]<pass?'fail':''}">${p.s[e.id]}</td>`).join('')}
+      <td class="n">${fmt(p.mean)}</td><td class="n ${p.fails?'fail':''}">${p.fails||''}</td></tr>`).join('') +
+    `<tr><td colspan="${5+ex.length}" class="muted" style="font-size:.8rem;border:0">以員編串連各次考試；分數為百分制，紅字為未及格（≥${pass} 及格）。</td></tr>`;
+  CMP_CACHE = {rows, list, ex, allUnits};
+}
+let CMP_CACHE = null;
+$('btnXlsxC').onclick = () => {
+  if(!window.XLSX || !CMP_CACHE){ return; }
+  const {rows, list, ex, allUnits} = CMP_CACHE, pass = +$('passC').value, wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.map(r => { const o = {考試:r.e.title, 人數:r.st.n||0, 平均:+fmt(r.st.mean), 中位數:r.st.med, 標準差:+fmt(r.st.sd), 及格率:r.passR==null?'':+r.passR.toFixed(3)}; SAT.forEach((c,i)=>o[c]=r.satM[i]==null?'':+r.satM[i].toFixed(2)); return o; })), '各次比較');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allUnits.map(un => { const o = {單位:un}; ex.forEach(e => { const P = parse(RAWS[e.id]); const a = P.data.filter(x=>x.unit===un); o[e.title] = a.length ? +(a.reduce((s,x)=>s+x.score/P.max*100,0)/a.length).toFixed(1) : ''; }); return o; })), '單位比較');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(list.map(p => { const o = {姓名:p.name, 員編:p.empId, 單位:p.unit}; ex.forEach(e => o[e.title] = p.s[e.id] ?? '未考'); o['平均'] = +p.mean.toFixed(1); o[`未及格次數(<${pass})`] = p.fails; return o; })), '個人歷次成績');
+  XLSX.writeFile(wb, `跨次考試比較_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+/* ---------- 示範資料（3 次考試，題目借用目前的題目檔） ---------- */
+function demoRaw(base, shift){
+  const key = {}; base.questions.forEach(q => key[q.id] = L[(q.id*7) % q.opts.length]);
+  const units = ['急診','急診','急診','加護病房','外科病房','內科病房','小兒科'];
+  const words = ['電腦有點卡，希望網路再穩定一點','題目圖片很清楚','考試時間可以再長一些','希望可以提前公布考試範圍','場地冷氣太冷','電子考試很方便，馬上知道成績'];
+  const header = ['提交時間','attemptId','姓名','員編','單位','Email','得分','答對題數','題數','作答秒數', ...base.questions.map(q=>'Q'+q.id), ...SAT, '建議','問卷時間'];
+  const rows = [];
+  for(let i=0;i<64;i++){
+    if(Math.random() < 0.08) continue;
+    const ab = 0.45 + ((i*37)%50)/100 + shift, ans = {};
+    base.questions.forEach(q => { const diff = (q.id%7)/20; ans[q.id] = Math.random() < 0.03 ? '' : (Math.random() < ab - diff + 0.1 ? key[q.id] : L[Math.floor(Math.random()*q.opts.length)]); });
+    const sat = () => Math.max(1, Math.min(5, Math.round(3.8 + shift*3 + (Math.random()-.4)*2.2)));
+    const out = header.map(()=> ''); const set = (c,v)=> out[header.indexOf(c)] = v;
+    set('提交時間','2026-10-20 14:'+String(10+i%40)); set('attemptId','demo'+i); set('姓名','考生'+(i+1)); set('員編','D'+(1000+i)); set('單位',units[i%units.length]); set('作答秒數',900+Math.floor(Math.random()*1800));
+    base.questions.forEach(q=>set('Q'+q.id, ans[q.id])); SAT.forEach(c=>set(c,sat())); set('建議', Math.random()<.25 ? words[i%words.length] : ''); set('問卷時間','x');
+    set('得分', base.questions.filter(q=>ans[q.id]===key[q.id]).length*base.pointsPer);
+    rows.push(out);
+  }
+  return { key, points: base.pointsPer, header, rows };
+}
+async function demo(){
+  await loadExamFile(window.ACTIVE_EXAM);
+  const base = window.EXAMS[window.ACTIVE_EXAM];
+  LIST = [{id:'demo-1', title:'示範 第1次考試'}, {id:'demo-2', title:'示範 第2次考試'}, {id:'demo-3', title:'示範 第3次考試', open:true}];
+  RAWS = {'demo-1':demoRaw(base,-0.08), 'demo-2':demoRaw(base,0), 'demo-3':demoRaw(base,0.07)}; ERRS = {};
+  isDemo = true; EXAM_ID = null; afterLoad();
+}
+</script>
+</body>
+</html>

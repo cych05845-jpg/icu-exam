@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>期末考試</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+  // ====== 設定：貼上 Apps Script 網頁應用程式網址 ======
+  const API_URL = '';
+</script>
+<script src="exams/list.js"></script>
+<style>
+:root{
+  --bg:#f4f6f5; --card:#ffffff; --ink:#1c2422; --muted:#5f6b68; --line:#dfe5e3;
+  --accent:#0f6b5c; --accent-ink:#ffffff; --accent-soft:#e3f1ee;
+  --ok:#1f7a3f; --ok-soft:#e5f4ea; --bad:#b3261e; --bad-soft:#fbe9e7; --warn:#8a5a00; --warn-soft:#fff4dc;
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#121716; --card:#1b2220; --ink:#e7eeec; --muted:#9aa8a4; --line:#2c3633;
+    --accent:#4fbfa8; --accent-ink:#0b1513; --accent-soft:#1d3531;
+    --ok:#6fcf8f; --ok-soft:#183324; --bad:#f08a80; --bad-soft:#3a1d1a; --warn:#f0c060; --warn-soft:#33290f; }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;font-size:20px;line-height:1.7;-webkit-text-size-adjust:100%}
+.wrap{max-width:760px;margin:0 auto;padding:20px 16px 120px}
+h1{font-size:1.7rem;margin:.2em 0 .1em;letter-spacing:.02em}
+h2{font-size:1.2rem;margin:0 0 .6em}
+.muted{color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:14px 0}
+.hide{display:none!important}
+label.f{display:block;font-weight:500;margin:14px 0 6px}
+label.f .req{color:var(--bad);margin-left:2px}
+input[type=text],input[type=email],textarea{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 13px;outline:none}
+input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+textarea{min-height:110px;resize:vertical}
+.err{color:var(--bad);font-size:.9rem;min-height:1.3em;margin-top:4px}
+.btn{appearance:none;border:0;border-radius:12px;padding:13px 22px;font:inherit;font-weight:700;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line);font-weight:500}
+.btn.block{width:100%}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 4px}
+.fact{background:var(--accent-soft);border-radius:12px;padding:10px;text-align:center}
+.fact b{display:block;font-size:1.35rem;color:var(--accent)}
+.fact span{font-size:.85rem;color:var(--muted)}
+.rules ol{margin:0;padding-left:1.4em}
+.rules li{margin:6px 0;padding-left:4px}
+.filelink{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:6px 0;color:var(--accent);text-decoration:none;font-weight:500}
+.filelink:hover{background:var(--accent-soft)}
+.agree{display:flex;gap:10px;align-items:center;margin:18px 0 4px;font-weight:500;cursor:pointer}
+.agree input{width:24px;height:24px;accent-color:var(--accent)}
+.banner{background:var(--warn-soft);color:var(--warn);border-radius:12px;padding:10px 14px;font-size:.92rem;margin:10px 0}
+
+/* exam */
+.topbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 8px;border-bottom:1px solid var(--line)}
+.prog{height:6px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:8px}
+.prog i{display:block;height:100%;background:var(--accent);width:0;transition:width .25s}
+.qnum{font-size:.95rem;color:var(--accent);font-weight:700}
+.qtext{font-size:1.15rem;font-weight:500;margin:6px 0 14px;line-height:1.6}
+.qimg{display:block;max-width:100%;border-radius:10px;border:1px solid var(--line);margin:4px 0 14px;cursor:zoom-in;background:#fff}
+.opt{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:14px 16px;margin:10px 0;cursor:pointer;line-height:1.55}
+.opt .lt{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--bg);border:1px solid var(--line)}
+.opt.sel{border-color:var(--accent);background:var(--accent-soft)}
+.opt.sel .lt{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));z-index:6}
+.nav .in{max-width:760px;margin:0 auto;display:flex;gap:10px}
+.nav .btn{flex:1}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:8px;margin-top:10px}
+.grid button{font:inherit;font-size:.95rem;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.grid button.done{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:700}
+.grid button.cur{outline:2px solid var(--accent);outline-offset:1px}
+
+/* survey */
+.sq{margin:18px 0 6px;font-weight:500}
+.likert{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.likert button{font:inherit;font-size:.9rem;line-height:1.3;padding:10px 4px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.likert button b{display:block;font-size:1.35rem}
+.likert button.sel{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+
+/* result */
+.score{display:flex;align-items:baseline;gap:8px;justify-content:center;margin:6px 0}
+.score b{font-size:3.6rem;line-height:1;color:var(--accent)}
+.score span{font-size:1.3rem;color:var(--muted)}
+.tabs{display:flex;gap:8px;margin:12px 0}
+.tabs button{font:inherit;padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.tabs button.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.rq{border-left:4px solid var(--ok)}
+.rq.wrong{border-left-color:var(--bad)}
+.ro{display:flex;gap:10px;padding:10px 12px;line-height:1.55;border-radius:10px;margin:5px 0;border:1px solid transparent}
+.ro .lt{flex:none;font-weight:700;width:22px}
+.ro.right{background:var(--ok-soft);border-color:var(--ok)}
+.ro.picked-wrong{background:var(--bad-soft);border-color:var(--bad)}
+.tag{display:inline-block;font-size:.8rem;font-weight:700;border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:1px}
+.tag.ok{background:var(--ok);color:#fff}.tag.bad{background:var(--bad);color:#fff}.tag.mine{background:var(--ink);color:var(--card)}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px;z-index:20}
+.modal .box{background:var(--card);border-radius:16px;padding:22px;max-width:440px;width:100%}
+.zoom{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:30;display:grid;place-items:center;padding:10px;cursor:zoom-out}
+.zoom img{max-width:100%;max-height:100%;background:#fff}
+.spin{display:inline-block;width:18px;height:18px;border:2.5px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-3px;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (max-width:440px){ body{font-size:19px} .likert button{font-size:.7rem;padding:8px 2px} .facts{gap:6px} }
+.btn.big{padding:16px 22px;font-size:1.05rem;margin:6px 0 10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- 1. 基本資料 -->
+<section id="s-info" class="hide">
+  <h1 id="examTitle">期末考試</h1>
+  <div class="facts">
+    <div class="fact"><b id="fTotal">–</b><span>題數</span></div>
+    <div class="fact"><b id="fPer">–</b><span>每題分數</span></div>
+    <div class="fact"><b id="fMax">–</b><span>滿分</span></div>
+  </div>
+  <div class="card rules" id="rulesCard">
+    <h2>考試規則</h2>
+    <ol id="rulesList"></ol>
+    <div id="filesBox" class="hide"><div class="muted" style="font-size:.9rem;margin:10px 0 4px">考試資料（點選開啟）</div><div id="filesList"></div></div>
+  </div>
+  <div id="demoBanner" class="banner hide">尚未設定後端網址（API_URL），目前為<b>示範模式</b>：可以試作，但不會儲存、也無法計分。</div>
+  <div id="resumeBox" class="card hide" style="border-color:var(--accent)">
+    <b>這台裝置上有一份未完成的考卷</b>
+    <div class="muted" id="resumeWho"></div>
+    <div class="row" style="margin-top:12px"><button class="btn" id="btnResume">繼續作答</button><button class="btn ghost" id="btnDiscard">不是我，重新開始</button></div>
+  </div>
+  <form class="card" id="infoForm" novalidate>
+    <h2>考生基本資料</h2>
+    <label class="f" for="iName">姓名<span class="req">*</span></label>
+    <input type="text" id="iName" autocomplete="name">
+    <label class="f" for="iEmp">員工編號<span class="req">*</span></label>
+    <input type="text" id="iEmp" inputmode="text" autocomplete="off">
+    <label class="f" for="iUnit">單位<span class="req">*</span></label>
+    <input type="text" id="iUnit" placeholder="例如：急診">
+    <label class="f" for="iEmail">Email<span class="req">*</span></label>
+    <input type="email" id="iEmail" autocomplete="email" inputmode="email">
+    <label class="agree"><input type="checkbox" id="iAgree"> 我已閱讀並了解上述考試規則</label>
+    <div class="err" id="infoErr"></div>
+    <button class="btn block" id="btnStart" type="submit">開始作答</button>
+  </form>
+</section>
+
+<!-- 2. 作答 -->
+<section id="s-exam" class="hide">
+  <div class="topbar">
+    <div class="row"><span class="qnum" id="who"></span><span class="spacer"></span><button class="btn ghost" id="btnGrid" style="padding:6px 12px">題目總覽</button></div>
+    <div class="row" style="font-size:.95rem"><b id="pageLbl"></b><span class="spacer"></span><span class="muted">已作答 <b id="doneN">0</b> / <span id="allN"></span></span></div>
+    <div class="prog"><i id="progBar"></i></div>
+  </div>
+  <div id="gridBox" class="card hide">
+    <div class="row"><b>題目總覽</b><span class="spacer"></span><span class="muted" style="font-size:.85rem">綠色＝已作答，框線＝本頁</span></div>
+    <div class="grid" id="grid"></div>
+    <button class="btn block" style="margin-top:14px" id="btnSubmit2">交卷</button>
+  </div>
+  <div id="qCard"></div>
+</section>
+
+<!-- 3. 滿意度 -->
+<section id="s-survey" class="hide">
+  <h1>考卷已送出 ✓</h1>
+  <p class="muted">最後一步：請填寫本次考試滿意度，送出後即可查看分數與答案。</p>
+  <div class="card" id="surveyCard"></div>
+</section>
+
+<!-- 4. 成績 -->
+<section id="s-result" class="hide">
+  <div class="card" style="text-align:center">
+    <div class="muted" id="rWho"></div>
+    <div class="score"><b id="rScore">–</b><span id="rMax"></span></div>
+    <div id="rLine"></div>
+  </div>
+  <div class="tabs"><button class="on" data-f="all">全部題目</button><button data-f="wrong">只看答錯</button></div>
+  <div id="rList"></div>
+  <div class="card">
+    <p style="margin-top:0">若在共用電腦作答，看完後請按下方按鈕清除，讓下一位使用。</p>
+    <button class="btn block" id="btnFinish">完成，清除本機作答紀錄</button>
+  </div>
+</section>
+
+</div>
+
+<div class="nav hide" id="nav"><div class="in">
+  <button class="btn ghost" id="btnPrev">‹ 上一頁</button>
+  <button class="btn" id="btnNext">下一頁 ›</button>
+</div></div>
+
+<div class="modal hide" id="modal"><div class="box" id="modalBox"></div></div>
+
+<script>
+const EXAM_ID = new URLSearchParams(location.search).get('exam') || window.ACTIVE_EXAM;
+let E = null, QMAP = {}, LS = '';
+const $ = id => document.getElementById(id);
+const LETTERS = 'ABCDEFGH';
+const SURVEY = [['s1','電子考試'],['s2','場地'],['s3','時間安排'],['s4','整體滿意度']];
+const LIKERT = [[5,'非常滿意'],[4,'滿意'],[3,'普通'],[2,'不滿意'],[1,'非常不滿意']];
+let S = null;
+
+function load(){ try{ return JSON.parse(localStorage.getItem(LS)); }catch(e){ return null; } }
+function save(){ try{ localStorage.setItem(LS, JSON.stringify(S)); }catch(e){} }
+function clearState(){ try{ localStorage.removeItem(LS); }catch(e){} S = null; }
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function shuffle(a){
+  a = a.slice(); const r = new Uint32Array(a.length); crypto.getRandomValues(r);
+  for(let i=a.length-1;i>0;i--){ const j = r[i] % (i+1); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+// 「以上皆是 / 以上皆非」這類選項固定放最後
+const PIN = /^(以上皆是|以上皆非|以上皆正確|以上皆錯誤)/;
+function shuffleOpts(q){
+  const ids = q.opts.map((_,i)=>LETTERS[i]);
+  const pinned = ids.filter((_,i)=>PIN.test(q.opts[i]));
+  const free = ids.filter((_,i)=>!PIN.test(q.opts[i]));
+  return shuffle(free).concat(pinned);
+}
+
+async function api(payload){
+  const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({exam: EXAM_ID, ...payload}) });
+  const j = await res.json();
+  if(!j.ok) throw new Error(j.error || '伺服器錯誤');
+  return j;
+}
+
+function show(id){
+  ['s-info','s-exam','s-survey','s-result'].forEach(s => $(s).classList.toggle('hide', s!==id));
+  $('nav').classList.toggle('hide', id!=='s-exam');
+  window.scrollTo(0,0);
+}
+
+function modal(html){ $('modalBox').innerHTML = html; $('modal').classList.remove('hide'); }
+function closeModal(){ $('modal').classList.add('hide'); }
+
+/* ---------- 1. 基本資料 ---------- */
+function fillVars(t){
+  const n = E.questions.length;
+  return t.replace(/\{題數\}/g, n).replace(/\{每題分數\}/g, E.pointsPer).replace(/\{滿分\}/g, n*E.pointsPer);
+}
+function renderRules(lines, files){
+  const items = lines.map(x => x.trim().replace(/^(\d+[\.、．)]|[-•‧・])\s*/, '')).filter(Boolean);
+  $('rulesList').innerHTML = items.map(x => `<li>${esc(fillVars(x))}</li>`).join('');
+  $('rulesCard').classList.toggle('hide', !items.length && !files.length);
+  $('filesBox').classList.toggle('hide', !files.length);
+  $('filesList').innerHTML = files.map(f => `<a class="filelink" href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('');
+}
+function initInfo(){
+  $('examTitle').textContent = E.title;
+  document.title = E.title;
+  $('fTotal').textContent = E.questions.length;
+  $('fPer').textContent = E.pointsPer;
+  $('fMax').textContent = E.questions.length * E.pointsPer;
+  $('demoBanner').classList.toggle('hide', !!API_URL);
+  renderRules(E.rules || [], []);
+  if(API_URL) api({action:'info'}).then(r => { const i = r.info || {}; renderRules(i.rules ? i.rules.split('\n') : (E.rules||[]), i.files || []); }).catch(()=>{});
+  const old = load();
+  if(old && old.info){
+    $('resumeBox').classList.remove('hide');
+    const st = {exam:'作答中', survey:'已交卷，尚未填問卷', result:'已完成'}[old.stage] || '';
+    $('resumeWho').textContent = `${old.info.name}（${old.info.empId}）— ${st}`;
+  }
+  show('s-info');
+}
+$('btnResume').onclick = () => { S = load(); route(); };
+$('btnDiscard').onclick = () => {
+  const old = load();
+  if(old && old.stage === 'exam'){
+    modal(`<h2>確定放棄？</h2><p>${esc(old.info.name)} 尚未交卷的作答內容會被刪除。</p><div class="row"><button class="btn" id="mY">確定刪除</button><button class="btn ghost" id="mN">取消</button></div>`);
+    $('mN').onclick = closeModal;
+    $('mY').onclick = () => { clearState(); closeModal(); $('resumeBox').classList.add('hide'); };
+  } else { clearState(); $('resumeBox').classList.add('hide'); }
+};
+
+$('infoForm').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const info = { name:$('iName').value.trim(), empId:$('iEmp').value.trim().toUpperCase(), unit:$('iUnit').value.trim(), email:$('iEmail').value.trim() };
+  const err = !$('iAgree').checked ? '請先閱讀考試規則並勾選「我已閱讀」' : !info.name ? '請填寫姓名' : !info.empId ? '請填寫員工編號' : !info.unit ? '請填寫單位'
+            : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(info.email) ? 'Email 格式不正確' : '';
+  $('infoErr').textContent = err;
+  if(err) return;
+  const btn = $('btnStart'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>確認中…';
+  try{
+    if(API_URL){
+      const r = await api({action:'check', empId: info.empId});
+      if(!r.open){ $('infoErr').textContent = '本次考試目前未開放，請洽承辦人。'; return; }
+      if(r.taken){ $('infoErr').textContent = '此員工編號已經交過卷。如需重考，請洽承辦人。'; return; }
+    }
+    const order = shuffle(E.questions.map(q=>q.id));
+    const optOrder = {}; order.forEach(id => optOrder[id] = shuffleOpts(QMAP[id]));
+    S = { stage:'exam', info, order, optOrder, answers:{}, page:0, startedAt: Date.now(),
+          attemptId: info.empId + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7) };
+    save(); route();
+  }catch(e){ $('infoErr').textContent = '連線失敗：' + e.message + '，請稍後再試。'; }
+  finally{ btn.disabled = false; btn.textContent = '開始作答'; }
+};
+
+/* ---------- 2. 作答 ---------- */
+const PAGES = 2;
+function pageRange(p){ const per = Math.ceil(S.order.length / PAGES); return [p*per, Math.min(S.order.length, (p+1)*per)]; }
+function qHtml(i){
+  const id = S.order[i], q = QMAP[id], ord = S.optOrder[id], mine = S.answers[id];
+  return `<div class="card qc" id="qc${i}" data-id="${id}">
+    <div class="qnum">第 ${i+1} 題</div>
+    <div class="qtext">${esc(q.q)}</div>
+    ${q.img ? `<img class="qimg" src="${esc(q.img)}" alt="第 ${i+1} 題附圖" data-zoom><div class="muted" style="font-size:.85rem;margin:-8px 0 10px">點圖可放大</div>` : ''}
+    ${ord.map((oid,j)=>`<button class="opt ${mine===oid?'sel':''}" data-o="${oid}"><span class="lt">${LETTERS[j]}</span><span>${esc(q.opts[LETTERS.indexOf(oid)])}</span></button>`).join('')}
+  </div>`;
+}
+function renderQ(){
+  if(S.page == null) S.page = 0;
+  const [a,b] = pageRange(S.page);
+  let html = '';
+  for(let i=a;i<b;i++) html += qHtml(i);
+  html += S.page < PAGES-1
+    ? `<button class="btn block big" id="btnPageNext">下一頁（第 ${pageRange(S.page+1)[0]+1}–${pageRange(S.page+1)[1]} 題）›</button>`
+    : `<div class="row" style="gap:10px"><button class="btn ghost big" id="btnPagePrev" style="flex:1">‹ 上一頁</button><button class="btn big" id="btnPageSubmit" style="flex:2">交卷</button></div>`;
+  $('qCard').innerHTML = html;
+  $('qCard').querySelectorAll('.qc').forEach(card => {
+    const id = +card.dataset.id;
+    card.querySelectorAll('.opt').forEach(btn => btn.onclick = () => {
+      S.answers[id] = btn.dataset.o; save();
+      card.querySelectorAll('.opt').forEach(x => x.classList.toggle('sel', x===btn));
+      updateProg();
+    });
+  });
+  $('qCard').querySelectorAll('[data-zoom]').forEach(z => z.onclick = () => zoom(z.src));
+  const nx = $('btnPageNext'); if(nx) nx.onclick = () => goPage(S.page+1);
+  const pv = $('btnPagePrev'); if(pv) pv.onclick = () => goPage(S.page-1);
+  const sb = $('btnPageSubmit'); if(sb) sb.onclick = confirmSubmit;
+  $('pageLbl').textContent = `第 ${S.page+1} 頁 / 共 ${PAGES} 頁（第 ${a+1}–${b} 題）`;
+  $('btnPrev').disabled = S.page === 0;
+  $('btnNext').textContent = S.page === PAGES-1 ? '交卷' : '下一頁 ›';
+  updateProg();
+}
+function goPage(p, scrollTo){
+  S.page = p; save(); renderQ();
+  if(scrollTo != null){ const el = $('qc'+scrollTo); if(el){ const y = el.getBoundingClientRect().top + window.scrollY - 150; window.scrollTo(0, y); return; } }
+  window.scrollTo(0,0);
+}
+function updateProg(){
+  const n = Object.keys(S.answers).length, t = S.order.length;
+  $('doneN').textContent = n; $('allN').textContent = t;
+  $('progBar').style.width = (n/t*100)+'%';
+  const [a,b] = pageRange(S.page||0);
+  $('grid').innerHTML = S.order.map((id,i)=>`<button class="${S.answers[id]?'done':''} ${i>=a&&i<b?'cur':''}" data-i="${i}">${i+1}</button>`).join('');
+  $('grid').querySelectorAll('button').forEach(btn => btn.onclick = () => {
+    const i = +btn.dataset.i; $('gridBox').classList.add('hide');
+    goPage(Math.floor(i / Math.ceil(S.order.length / PAGES)), i);
+  });
+}
+function zoom(src){ const d = document.createElement('div'); d.className='zoom'; d.innerHTML = `<img src="${src}" alt="">`; d.onclick = () => d.remove(); document.body.appendChild(d); }
+$('btnPrev').onclick = () => { if(S.page>0) goPage(S.page-1); };
+$('btnNext').onclick = () => { if(S.page < PAGES-1) goPage(S.page+1); else confirmSubmit(); };
+$('btnGrid').onclick = () => $('gridBox').classList.toggle('hide');
+$('btnSubmit2').onclick = confirmSubmit;
+
+function confirmSubmit(){
+  const miss = S.order.map((id,i)=>S.answers[id]?null:i+1).filter(Boolean);
+  modal(`<h2>確定交卷？</h2>
+    ${miss.length ? `<p style="color:var(--bad)">還有 <b>${miss.length}</b> 題未作答：第 ${miss.slice(0,15).join('、')}${miss.length>15?'…':''} 題。未作答以 0 分計。</p>` : '<p>50 題全部作答完畢。</p>'.replace('50', S.order.length)}
+    <p class="muted" style="font-size:.9rem">交卷後無法修改答案。</p>
+    <div class="row"><button class="btn" id="mY">確定交卷</button><button class="btn ghost" id="mN">再檢查一下</button></div>
+    <div class="err" id="mErr"></div>`);
+  $('mN').onclick = closeModal;
+  $('mY').onclick = async () => {
+    const b = $('mY'); b.disabled = true; b.innerHTML = '<span class="spin"></span>送出中…';
+    try{
+      if(API_URL){
+        await api({ action:'submit', attemptId:S.attemptId, ...S.info, order:S.order, optOrder:S.optOrder, answers:S.answers,
+                    durationSec: Math.round((Date.now()-S.startedAt)/1000) });
+      }
+      S.stage = 'survey'; S.survey = {}; save(); closeModal(); route();
+    }catch(e){ $('mErr').textContent = '送出失敗：' + e.message + '。作答內容仍保留在本機，請再按一次。'; b.disabled = false; b.textContent = '確定交卷'; }
+  };
+}
+
+/* ---------- 3. 滿意度 ---------- */
+function renderSurvey(){
+  const sv = S.survey || (S.survey = {});
+  $('surveyCard').innerHTML = `<h2>滿意度調查</h2>
+    ${SURVEY.map(([k,label],i)=>`<div class="sq">${i+1}. ${label}<span style="color:var(--bad)">*</span></div>
+      <div class="likert">${LIKERT.map(([v,t])=>`<button data-k="${k}" data-v="${v}" class="${sv[k]==v?'sel':''}"><b>${v}</b>${t}</button>`).join('')}</div>`).join('')}
+    <div class="sq">5. 建議（選填）</div>
+    <textarea id="sugg" placeholder="對這次考試或課程的任何建議">${esc(sv.suggestion||'')}</textarea>
+    <div class="err" id="sErr"></div>
+    <button class="btn block" id="btnSurvey">送出並查看成績</button>`;
+  $('surveyCard').querySelectorAll('.likert button').forEach(b => b.onclick = () => { sv[b.dataset.k] = +b.dataset.v; save(); renderSurvey(); });
+  $('sugg').oninput = e => { sv.suggestion = e.target.value; save(); };
+  $('btnSurvey').onclick = async () => {
+    const miss = SURVEY.filter(([k])=>!sv[k]).map(([,l])=>l);
+    if(miss.length){ $('sErr').textContent = '請完成：' + miss.join('、'); return; }
+    const b = $('btnSurvey'); b.disabled = true; b.innerHTML = '<span class="spin"></span>計分中…';
+    try{
+      if(API_URL){
+        const r = await api({ action:'survey', attemptId:S.attemptId, s1:sv.s1, s2:sv.s2, s3:sv.s3, s4:sv.s4, suggestion: sv.suggestion||'' });
+        S.result = r.result; S.key = r.key;
+      } else { S.result = null; S.key = null; }
+      S.stage = 'result'; save(); route();
+    }catch(e){ $('sErr').textContent = '送出失敗：' + e.message + '，請再試一次。'; b.disabled = false; b.textContent = '送出並查看成績'; }
+  };
+}
+
+/* ---------- 4. 成績與答案 ---------- */
+let filter = 'all';
+function renderResult(){
+  $('rWho').textContent = `${S.info.name}（${S.info.empId}）${S.info.unit}`;
+  if(!S.result){
+    $('rScore').textContent = '—'; $('rMax').textContent = '';
+    $('rLine').innerHTML = '<span class="muted">示範模式未連線後端，無法計分。</span>';
+    $('rList').innerHTML = ''; return;
+  }
+  $('rScore').textContent = S.result.score; $('rMax').textContent = '/ ' + S.result.max + ' 分';
+  $('rLine').innerHTML = `答對 <b>${S.result.correct}</b> 題，答錯或未答 <b>${S.result.total - S.result.correct}</b> 題`;
+  const items = S.order.map((id,i) => {
+    const q = QMAP[id], ord = S.optOrder[id], mine = S.answers[id], key = S.key[id];
+    const right = mine && mine === key;
+    if(filter==='wrong' && right) return '';
+    return `<div class="card rq ${right?'':'wrong'}">
+      <div class="qnum">第 ${i+1} 題 ${right?'<span class="tag ok">答對</span>':'<span class="tag bad">'+(mine?'答錯':'未作答')+'</span>'}</div>
+      <div class="qtext" style="font-size:1.02rem">${esc(q.q)}</div>
+      ${q.img ? `<img class="qimg" src="${esc(q.img)}" alt="" data-zoom style="max-height:260px">` : ''}
+      ${ord.map((oid,j)=>{
+        const cls = oid===key ? 'right' : (oid===mine ? 'picked-wrong' : '');
+        return `<div class="ro ${cls}"><span class="lt">${LETTERS[j]}</span><span>${esc(q.opts[LETTERS.indexOf(oid)])}
+          ${oid===key?'<span class="tag ok">正確答案</span>':''}${oid===mine?'<span class="tag mine">你的答案</span>':''}</span></div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+  $('rList').innerHTML = items || '<div class="card" style="text-align:center">全部答對，太厲害了！</div>';
+  $('rList').querySelectorAll('[data-zoom]').forEach(z => z.onclick = () => zoom(z.src));
+}
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  filter = b.dataset.f; document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x===b)); renderResult();
+});
+$('btnFinish').onclick = () => { clearState(); location.reload(); };
+
+function route(){
+  if(!S || !S.info){ initInfo(); return; }
+  if(S.stage === 'exam'){ show('s-exam'); $('who').textContent = `${S.info.name}（${S.info.empId}）`; renderQ(); }
+  else if(S.stage === 'survey'){ show('s-survey'); renderSurvey(); }
+  else if(S.stage === 'result'){ show('s-result'); renderResult(); }
+}
+window.addEventListener('beforeunload', e => { if(S && S.stage==='exam'){ e.preventDefault(); e.returnValue=''; } });
+
+function boot(){
+  const fail = msg => { document.querySelector('.wrap').innerHTML = `<div class="card" style="margin-top:40px;text-align:center"><h2>${msg}</h2><p class="muted">請確認網址，或洽承辦人。</p></div>`; };
+  if(!EXAM_ID) return fail('目前沒有開放的考試');
+  const sc = document.createElement('script');
+  sc.src = 'exams/' + encodeURIComponent(EXAM_ID) + '.js';
+  sc.onload = () => {
+    E = window.EXAMS && window.EXAMS[EXAM_ID];
+    if(!E) return fail('找不到考試「' + EXAM_ID + '」');
+    QMAP = Object.fromEntries(E.questions.map(q => [q.id, q]));
+    LS = 'exam_state_' + EXAM_ID;
+    initInfo();
+  };
+  sc.onerror = () => fail('找不到考試「' + EXAM_ID + '」');
+  document.head.appendChild(sc);
+}
+boot();
+</script>
+</body>
+</html>
